@@ -13,13 +13,14 @@ INC_DIRS      := $(shell find $(SRC_DIR) -type d)
 INC_FLAGS     := $(addprefix -I,$(INC_DIRS))
 DEFINES_FLAGS := $(addprefix -D,$(DEFINES))
 
+
 TARGET        := output
 CC            := arm-none-eabi-gcc
 OBJCOPY       := arm-none-eabi-objcopy
 GDB           := arm-none-eabi-gdb
 SIZE          := arm-none-eabi-size
 CFLAGS        := -mcpu=$(CPU) -mthumb -Wall -O0 -g -std=gnu99 -MMD -MP $(INC_FLAGS) $(DEFINES_FLAGS)
-LDFLAGS       := -mcpu=$(CPU) -mthumb -nostdlib -T $(LSCRIPT) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
+LDFLAGS       := -mcpu=$(CPU) -mthumb --specs=nano.specs -T $(LSCRIPT) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
 
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@.elf
