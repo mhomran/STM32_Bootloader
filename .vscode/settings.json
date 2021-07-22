@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "stm32f4xx.h": "c",
+    "errno.h": "c",
+    "stm32f4xx_hal.h": "c",
+    "main.h": "c"
+  }
+}
