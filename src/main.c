@@ -1,15 +1,18 @@
 #include "main.h"
 
-void SystemClock_Config(void);
-void Error_Handler(void);
-
 int 
 main(void) 
 {
+  __enable_irq(); // For systick timer that's used for timeout by CubeHAL
+  HAL_Init();
   SystemClock_Config();
-  uint32_t temp = SystemCoreClock;
+
+  RedLed_Init();
+  
   while (1) 
-    {                                                                
+    {
+      HAL_GPIO_TogglePin(GPIOD, RED_LED_PIN);
+      HAL_Delay(500);
     }
 }
 
@@ -58,6 +61,18 @@ void
 Error_Handler(void) 
 {
 
+}
+
+void 
+RedLed_Init(void) 
+{
+  __GPIOD_CLK_ENABLE();
+  GPIO_InitTypeDef gpiod_struct = {0};
+  gpiod_struct.Mode = GPIO_MODE_OUTPUT_PP;
+  gpiod_struct.Pull = GPIO_NOPULL;
+  gpiod_struct.Speed = GPIO_SPEED_FREQ_LOW;
+  gpiod_struct.Pin = RED_LED_PIN;
+  HAL_GPIO_Init(GPIOD, &gpiod_struct);
 }
 
 
