@@ -5,6 +5,8 @@ main(void)
 {
   __enable_irq(); // For systick timer that's used for timeout by CubeHAL
   HAL_Init();
+  IWDG_Config();
+
   SystemClock_Config();
 
   RedLed_Init();
@@ -73,6 +75,21 @@ RedLed_Init(void)
   gpiod_struct.Speed = GPIO_SPEED_FREQ_LOW;
   gpiod_struct.Pin = RED_LED_PIN;
   HAL_GPIO_Init(GPIOD, &gpiod_struct);
+}
+
+void 
+IWDG_Config(void) 
+{
+  IWDG_HandleTypeDef iwdg_handle = {0};
+
+  iwdg_handle.Instance = IWDG;
+  iwdg_handle.Init.Prescaler = IWDG_PRESCALER_4;
+  iwdg_handle.Init.Reload = IWDG_2_MS; 
+  
+  if(HAL_IWDG_Init(&iwdg_handle) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 
