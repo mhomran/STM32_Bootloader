@@ -9,6 +9,7 @@
  * 
  */
 
+#include <stdio.h>
 #include "stm32f4xx_hal.h"
 #include "serial.h"
 #include "port.h"
@@ -20,7 +21,6 @@ static UART_HandleTypeDef gUart1Handle;
 static DMA_HandleTypeDef gDma2Handle;
 static uint8_t gReceiveBuffer[RECEIVE_BUFFER_SIZE];
 static CircBuff_t gsReceiveBuffer;
-static void strTransmit(const char * str, uint8_t size);
 
 void 
 HAL_UART_MspInit(UART_HandleTypeDef *hsart)
@@ -103,21 +103,14 @@ USART1_IRQHandler(void)
       Error_Handler();
     }
 
-  const char ack[] = "ACK";
-  strTransmit(ack, sizeof(ack));
+  printf("ACK\n");
 }
 
-/**
- * @brief   DMA string transmit
- * @note
- * @param   str, size
- * @retval  None
- */
-static void 
-strTransmit(const char * str, uint8_t size)
+int 
+_write(int file, char *ptr, int len) 
 {
   /* Check null pointers */
-  if(NULL != str)
+  if(NULL != ptr)
     {
       /* Wait until DMA2 stream 7 is disabled */
       while(DMA_SxCR_EN == (DMA_SxCR_EN & DMA2_Stream7->CR))
@@ -127,10 +120,10 @@ strTransmit(const char * str, uint8_t size)
         }
 
       /* Set memory address */
-      DMA2_Stream7->M0AR = (uint32_t)str;
+      DMA2_Stream7->M0AR = (uint32_t)ptr;
 
       /* Set number of data items */
-      DMA2_Stream7->NDTR = size;
+      DMA2_Stream7->NDTR = len;
 
       /* Clear all interrupt flags */
       DMA2->HIFCR = (DMA_HIFCR_CFEIF7 | DMA_HIFCR_CDMEIF7 | DMA_HIFCR_CTEIF7
@@ -143,4 +136,5 @@ strTransmit(const char * str, uint8_t size)
     {
       /* Null pointers, do nothing */
     }
+  return len;
 }
