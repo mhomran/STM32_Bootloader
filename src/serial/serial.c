@@ -9,20 +9,38 @@
  * 
  */
 
+#define HEX_ADDR_SIZE 2
+
 #include <stdio.h>
 #include "stm32f4xx_hal.h"
 #include "serial.h"
 #include "port.h"
-#include "circ_buffer.h"
+
+typedef enum
+{
+  HEX_STATE_LEN,
+  HEX_STATE_ADDR,
+  HEX_STATE_TYPE,
+  HEX_STATE_DATA,
+  HEX_STATE_CC
+}HexState_t;
+
+typedef struct {
+  uint8_t len;
+  uint16_t addr;
+  uint8_t data[UART1_RECEIVE_BUFFER_SIZE];
+  uint8_t type;
+  uint8_t checksum;
+} HexPacket_t;
+
+inline static void StateMachine(void);
 
 void Error_Handler(void);
 
-static UART_HandleTypeDef gUart1Handle;
-static DMA_HandleTypeDef gDma2Handle;
-static uint8_t gReceiveBuffer[USART1_RECEIVE_BUFFER_SIZE];
-static CircBuff_t gsReceiveBuffer;
-
-static const char gOvfError[] = "[ERROR] USART1 circular buffer overflow";
+UART_HandleTypeDef gUart1Handle;
+DMA_HandleTypeDef gDma2Usart1TxHandle;
+DMA_HandleTypeDef gDma2Usart1RxHandle;
+static HexPacket_t gPacket;
 
 void 
 HAL_UART_MspInit(UART_HandleTypeDef *hsart)
@@ -42,31 +60,48 @@ HAL_UART_MspInit(UART_HandleTypeDef *hsart)
       GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
       HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-      gDma2Handle.Instance = DMA2_Stream7;
-      gDma2Handle.Init.Channel = DMA_CHANNEL_4;
-      gDma2Handle.Init.Direction = DMA_MEMORY_TO_PERIPH;
-      gDma2Handle.Init.PeriphInc = DMA_PINC_DISABLE;
-      gDma2Handle.Init.MemInc = DMA_MINC_ENABLE;
-      gDma2Handle.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-      gDma2Handle.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-      gDma2Handle.Init.Mode = DMA_NORMAL;
-      gDma2Handle.Init.Priority = DMA_PRIORITY_LOW;
-      gDma2Handle.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-      if (HAL_DMA_Init(&gDma2Handle) != HAL_OK)
+      gDma2Usart1TxHandle.Instance = DMA2_Stream7;
+      gDma2Usart1TxHandle.Init.Channel = DMA_CHANNEL_4;
+      gDma2Usart1TxHandle.Init.Direction = DMA_MEMORY_TO_PERIPH;
+      gDma2Usart1TxHandle.Init.PeriphInc = DMA_PINC_DISABLE;
+      gDma2Usart1TxHandle.Init.MemInc = DMA_MINC_ENABLE;
+      gDma2Usart1TxHandle.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+      gDma2Usart1TxHandle.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+      gDma2Usart1TxHandle.Init.Mode = DMA_NORMAL;
+      gDma2Usart1TxHandle.Init.Priority = DMA_PRIORITY_LOW;
+      gDma2Usart1TxHandle.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+      if (HAL_DMA_Init(&gDma2Usart1TxHandle) != HAL_OK)
         {
           Error_Handler();
         }
 
-      __HAL_LINKDMA(&gUart1Handle,hdmatx,gDma2Handle);
+      __HAL_LINKDMA(&gUart1Handle,hdmatx,gDma2Usart1TxHandle);
+
+      /* USART1_RX Init */
+      gDma2Usart1RxHandle.Instance = DMA2_Stream2;
+      gDma2Usart1RxHandle.Init.Channel = DMA_CHANNEL_4;
+      gDma2Usart1RxHandle.Init.Direction = DMA_PERIPH_TO_MEMORY;
+      gDma2Usart1RxHandle.Init.PeriphInc = DMA_PINC_DISABLE;
+      gDma2Usart1RxHandle.Init.MemInc = DMA_MINC_ENABLE;
+      gDma2Usart1RxHandle.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+      gDma2Usart1RxHandle.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+      gDma2Usart1RxHandle.Init.Mode = DMA_NORMAL;
+      gDma2Usart1RxHandle.Init.Priority = DMA_PRIORITY_LOW;
+      gDma2Usart1RxHandle.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+      if (HAL_DMA_Init(&gDma2Usart1RxHandle) != HAL_OK)
+        {
+          Error_Handler();
+        }
+
+      __HAL_LINKDMA(&gUart1Handle,hdmarx,gDma2Usart1RxHandle);
 
       /* USART1 interrupt Init */
       HAL_NVIC_SetPriority(USART1_IRQn, TICK_INT_PRIORITY+1, 0);
       HAL_NVIC_EnableIRQ(USART1_IRQn);
-      HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 0, 0);
+      HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, TICK_INT_PRIORITY+2, 0);
       HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
-
-      /* Enable the UART Data Register not empty Interrupt */
-      __HAL_UART_ENABLE_IT(&gUart1Handle, UART_IT_RXNE);
+      HAL_NVIC_SetPriority(DMA2_Stream2_IRQn, TICK_INT_PRIORITY+3, 0);
+      HAL_NVIC_EnableIRQ(DMA2_Stream2_IRQn);
     }
 }
 
@@ -85,46 +120,72 @@ Serial_Init(void)
     {
       Error_Handler();
     }
-  
-  gsReceiveBuffer = CircBuff_Create(gReceiveBuffer, USART1_RECEIVE_BUFFER_SIZE);  
-}
 
-
-/**
-  * @brief This function handles USART1 global interrupt.
-  */
-void 
-USART1_IRQHandler(void)
-{
-  volatile uint8_t RCFlag = __HAL_UART_GET_FLAG(&gUart1Handle, UART_FLAG_RXNE);
-  //clear the RC flag to prevent stm32 HAL from clearing it and disable the receiver
-  if(RCFlag) 
-    {
-      __HAL_UART_CLEAR_FLAG(&gUart1Handle, UART_FLAG_RXNE);
-    }
-  
-  HAL_UART_IRQHandler(&gUart1Handle);
-    
-  if(RCFlag) 
-    {
-      volatile uint8_t tempDR = USART1->DR;
-      if(CircBuff_Enqueue(&gsReceiveBuffer, tempDR) == 0) 
-        {
-          printf("%s\n", gOvfError);
-        }
-    }
-}
-
-/**
-  * @brief This function handles DMA2 stream7 global interrupt.
-  */
-void DMA2_Stream7_IRQHandler(void)
-{
-  HAL_DMA_IRQHandler(&gDma2Handle);
+  HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.len), sizeof(gPacket.len));
 }
 
 int 
 _write(int file, char *ptr, int len) 
 {  
   return HAL_UART_Transmit_DMA(&gUart1Handle, (uint8_t*)ptr, len);
+}
+
+
+/**
+  * @brief  Rx Transfer completed callbacks.
+  * @param  huart  Pointer to a UART_HandleTypeDef structure that contains
+  *                the configuration information for the specified UART module.
+  * @retval None
+  */
+void 
+HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if(huart->Instance == USART1)
+    {
+      StateMachine();   
+    }
+}
+
+/**
+ * @brief state machine for the HEX file parsing
+ * 
+ */
+inline static void
+StateMachine(void)
+{
+  static HexState_t state = HEX_STATE_LEN;
+  
+  switch(state) 
+  {
+    case HEX_STATE_LEN:
+      {
+        state = HEX_STATE_ADDR;
+        HAL_UART_Receive_DMA(&gUart1Handle, (uint8_t*)&(gPacket.addr), sizeof(gPacket.addr));
+      }
+      break;
+    case HEX_STATE_ADDR:
+      {
+        state = HEX_STATE_TYPE;
+        HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.type), sizeof(gPacket.type));
+      }
+      break;
+    case HEX_STATE_TYPE:
+      {
+        state = HEX_STATE_DATA;
+        HAL_UART_Receive_DMA(&gUart1Handle, gPacket.data, gPacket.len);
+      }
+      break;
+    case HEX_STATE_DATA:
+      {
+        state = HEX_STATE_CC;
+        HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.checksum), sizeof(gPacket.checksum));
+      }
+      break;
+    case HEX_STATE_CC:
+      {
+        state = HEX_STATE_LEN;
+        HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.len), sizeof(gPacket.len));
+      }
+      break;
+  }
 }
