@@ -19,8 +19,11 @@ CC            := arm-none-eabi-gcc
 OBJCOPY       := arm-none-eabi-objcopy
 GDB           := arm-none-eabi-gdb
 SIZE          := arm-none-eabi-size
-CFLAGS        := -mcpu=$(CPU) -mthumb -Wall -O0 -g -std=gnu99 -MMD -MP $(INC_FLAGS) $(DEFINES_FLAGS)
+CFLAGS_CMN    := -mcpu=$(CPU) -mthumb -Wall -std=gnu99 -MMD -MP $(INC_FLAGS) $(DEFINES_FLAGS)
+CFLAGS        := $(CFLAGS_CMN) -O0 -g 
+CFLAGS_RL     := $(CFLAGS_CMN) -O3 
 LDFLAGS       := -mcpu=$(CPU) -mthumb --specs=nano.specs -T $(LSCRIPT) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
+MODE					:= debug
 
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@.elf
@@ -29,11 +32,19 @@ $(BUILD_DIR)/$(TARGET): $(OBJS)
 
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)
+ifeq ($(MODE), release)
+	$(CC) $(CFLAGS_RL) -c $< -o $@
+else
 	$(CC) $(CFLAGS) -c $< -o $@
+endif
 
 $(BUILD_DIR)/%.s.o: %.s
-	mkdir -p $(dir $@)
+	mkdir -p $(dir $@)	
+ifeq ($(MODE), release)
+	$(CC) $(CFLAGS_RL) -c $< -o $@
+else
 	$(CC) $(CFLAGS) -c $< -o $@
+endif
 
 -include $(DEPS)
 
