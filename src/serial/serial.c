@@ -25,15 +25,8 @@ typedef enum
   HEX_STATE_CC
 }HexState_t;
 
-typedef struct {
-  uint8_t len;
-  uint16_t addr;
-  uint8_t data[UART1_RECEIVE_BUFFER_SIZE];
-  uint8_t type;
-  uint8_t checksum;
-} HexPacket_t;
-
 inline static void StateMachine(void);
+static void (*Packet_Handler)(HexPacket_t*);
 
 void Error_Handler(void);
 
@@ -184,8 +177,15 @@ StateMachine(void)
     case HEX_STATE_CC:
       {
         state = HEX_STATE_LEN;
+        Packet_Handler(&gPacket);
         HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.len), sizeof(gPacket.len));
       }
       break;
   }
+}
+
+void 
+Serial_RegesterPacketCallback(void(*pPacket_Handler)(HexPacket_t*))
+{
+  Packet_Handler = pPacket_Handler;
 }

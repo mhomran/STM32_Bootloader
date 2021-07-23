@@ -1,6 +1,7 @@
 #include "main.h"
 #include "port.h"
 #include "serial.h"
+#include "packet.h"
 
 int 
 main(void) 
@@ -14,6 +15,7 @@ main(void)
   IWDG_Config();
   SystemClock_Config();
   
+  Packet_Init();
   Serial_Init();
   BlueLed_Init();
 
