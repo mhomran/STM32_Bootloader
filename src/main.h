@@ -1,7 +1,6 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define RED_LED_PIN GPIO_PIN_15
 #define IWDG_2_MS 16
 
 #include "stm32f4xx.h"
@@ -13,7 +12,7 @@ extern "C" {
 
 void SystemClock_Config(void);
 void IWDG_Config(void);
-void RedLed_Init(void);
+void BlueLed_Init(void);
 void Error_Handler(void);
 
 #ifdef __cplusplus

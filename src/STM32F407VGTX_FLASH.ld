@@ -38,10 +38,9 @@ _Min_Heap_Size = 0x200;	/* required amount of heap  */
 _Min_Stack_Size = 0x400;	/* required amount of stack */
 
 _Bootloader_Flash_Origin = _Flash_Origin; 
-_Bootloader_Flash_Size = 0x4000; /* 16KBytes */
+_Bootloader_Flash_Size = 64K; /* sector 0:3 */
 _Bootloader_SRAM_Origin = _SRAM_Origin; 
-_Bootloader_SRAM_Size = 0x4000; /* sector 1 = 16KBytes */
-
+_Bootloader_SRAM_Size = 16K;
 
 /* Memories definition */
 MEMORY
