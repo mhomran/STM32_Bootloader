@@ -11,7 +11,7 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
-#define RECEIVE_BUFFER_SIZE 100
+#define USART1_RECEIVE_BUFFER_SIZE 100
 
 #ifdef __cplusplus
 extern "C" {

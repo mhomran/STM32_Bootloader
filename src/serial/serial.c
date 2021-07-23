@@ -19,8 +19,10 @@ void Error_Handler(void);
 
 static UART_HandleTypeDef gUart1Handle;
 static DMA_HandleTypeDef gDma2Handle;
-static uint8_t gReceiveBuffer[RECEIVE_BUFFER_SIZE];
+static uint8_t gReceiveBuffer[USART1_RECEIVE_BUFFER_SIZE];
 static CircBuff_t gsReceiveBuffer;
+
+static const char gOvfError[] = "[ERROR] USART1 circular buffer overflow";
 
 void 
 HAL_UART_MspInit(UART_HandleTypeDef *hsart)
@@ -54,13 +56,17 @@ HAL_UART_MspInit(UART_HandleTypeDef *hsart)
         {
           Error_Handler();
         }
-      DMA2_Stream7->PAR = (uint32_t)&USART1->DR;
 
       __HAL_LINKDMA(&gUart1Handle,hdmatx,gDma2Handle);
 
       /* USART1 interrupt Init */
       HAL_NVIC_SetPriority(USART1_IRQn, TICK_INT_PRIORITY+1, 0);
       HAL_NVIC_EnableIRQ(USART1_IRQn);
+      HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 0, 0);
+      HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
+
+      /* Enable the UART Data Register not empty Interrupt */
+      __HAL_UART_ENABLE_IT(&gUart1Handle, UART_IT_RXNE);
     }
 }
 
@@ -80,14 +86,9 @@ Serial_Init(void)
       Error_Handler();
     }
   
-  /* Enable DMA mode for transmitter */
-  USART1->CR3 |= USART_CR3_DMAT;
-
-  /* Enable the UART Data Register not empty Interrupt */
-  __HAL_UART_ENABLE_IT(&gUart1Handle, UART_IT_RXNE);
-  
-  gsReceiveBuffer = CircBuff_Create(gReceiveBuffer, RECEIVE_BUFFER_SIZE);  
+  gsReceiveBuffer = CircBuff_Create(gReceiveBuffer, USART1_RECEIVE_BUFFER_SIZE);  
 }
+
 
 /**
   * @brief This function handles USART1 global interrupt.
@@ -95,46 +96,35 @@ Serial_Init(void)
 void 
 USART1_IRQHandler(void)
 {
-  __HAL_UART_CLEAR_FLAG(&gUart1Handle, UART_FLAG_RXNE);
-
-  volatile uint8_t tempDR = USART1->DR;
-  if(CircBuff_Enqueue(&gsReceiveBuffer, tempDR) == 0) 
+  volatile uint8_t RCFlag = __HAL_UART_GET_FLAG(&gUart1Handle, UART_FLAG_RXNE);
+  //clear the RC flag to prevent stm32 HAL from clearing it and disable the receiver
+  if(RCFlag) 
     {
-      Error_Handler();
+      __HAL_UART_CLEAR_FLAG(&gUart1Handle, UART_FLAG_RXNE);
     }
+  
+  HAL_UART_IRQHandler(&gUart1Handle);
+    
+  if(RCFlag) 
+    {
+      volatile uint8_t tempDR = USART1->DR;
+      if(CircBuff_Enqueue(&gsReceiveBuffer, tempDR) == 0) 
+        {
+          printf("%s\n", gOvfError);
+        }
+    }
+}
 
-  printf("ACK\n");
+/**
+  * @brief This function handles DMA2 stream7 global interrupt.
+  */
+void DMA2_Stream7_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&gDma2Handle);
 }
 
 int 
 _write(int file, char *ptr, int len) 
-{
-  /* Check null pointers */
-  if(NULL != ptr)
-    {
-      /* Wait until DMA2 stream 7 is disabled */
-      while(DMA_SxCR_EN == (DMA_SxCR_EN & DMA2_Stream7->CR))
-        {
-          /* Do nothing, the enable flag shall reset
-          * when DMA transfer complete */
-        }
-
-      /* Set memory address */
-      DMA2_Stream7->M0AR = (uint32_t)ptr;
-
-      /* Set number of data items */
-      DMA2_Stream7->NDTR = len;
-
-      /* Clear all interrupt flags */
-      DMA2->HIFCR = (DMA_HIFCR_CFEIF7 | DMA_HIFCR_CDMEIF7 | DMA_HIFCR_CTEIF7
-          | DMA_HIFCR_CHTIF7 | DMA_HIFCR_CTCIF7);
-
-      /* Enable DMA2 stream 7 */
-      DMA2_Stream7->CR |= DMA_SxCR_EN;
-    }
-  else
-    {
-      /* Null pointers, do nothing */
-    }
-  return len;
+{  
+  return HAL_UART_Transmit_DMA(&gUart1Handle, (uint8_t*)ptr, len);
 }
