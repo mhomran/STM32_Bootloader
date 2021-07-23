@@ -23,11 +23,11 @@ CFLAGS_CMN    := -mcpu=$(CPU) -mthumb -Wall -std=gnu99 -MMD -MP $(INC_FLAGS) $(D
 CFLAGS        := $(CFLAGS_CMN) -O0 -g 
 CFLAGS_RL     := $(CFLAGS_CMN) -O3 
 LDFLAGS       := -mcpu=$(CPU) -mthumb --specs=nano.specs -T $(LSCRIPT) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
-MODE					:= debug
+MODE          := debug
 
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@.elf
-	$(OBJCOPY) -j .text -j .data -O ihex $@.elf $@.hex
+	$(OBJCOPY) -R .bss -O ihex $@.elf $@.hex
 	$(SIZE) $@.elf
 
 $(BUILD_DIR)/%.c.o: %.c
