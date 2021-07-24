@@ -166,16 +166,20 @@ StateMachine(void)
       break;
     case HEX_STATE_TYPE:
       {
-        state = HEX_STATE_DATA;
         if(gPacket.len != 0)
           {
+            state = HEX_STATE_DATA;
             if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, gPacket.data, gPacket.len))
               {
               }
           }
         else
           {
-            StateMachine();
+            state = HEX_STATE_CC;
+            if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.checksum),
+            sizeof(gPacket.checksum)))
+              {
+              }
           }
       }
       break;
