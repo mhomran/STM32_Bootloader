@@ -12,12 +12,12 @@
  */
 #include <stdio.h>
 #include "packet.h"
-#include "serial.h"
 
 static const char gChecksumError[] = "[ERROR] Checksum";
 
 static void Packet_Handler(HexPacket_t* Packet);
 inline static uint8_t Packet_Checksum(HexPacket_t* Packet);
+static void (*Boot_Handler)(HexPacket_t*);
 
 void 
 Packet_Init(void)
@@ -33,6 +33,8 @@ Packet_Handler(HexPacket_t* Packet)
       printf("%s\n", gChecksumError);
       return;
     }
+  
+  Boot_Handler(Packet);
 }
 
 inline static uint8_t 
@@ -53,4 +55,10 @@ Packet_Checksum(HexPacket_t* Packet)
   sum += 1;
 
   return (sum == Packet->checksum);
+}
+
+void 
+Packet_RegesterBootCallback(void(*pBoot_Handler)(HexPacket_t*))
+{
+  Boot_Handler = pBoot_Handler;
 }

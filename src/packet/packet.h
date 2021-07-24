@@ -14,12 +14,14 @@
 #define PACKET_H
 
 #include <inttypes.h>
+#include "serial.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void Packet_Init(void);
+void Packet_RegesterBootCallback(void(*pBoot_Handler)(HexPacket_t*));
 
 #ifdef __cplusplus
 }

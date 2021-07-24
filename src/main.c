@@ -17,6 +17,7 @@ main(void)
   IWDG_Config();
   SystemClock_Config();
   
+  Boot_Init();
   Packet_Init();
   Serial_Init();
   BlueLed_Init();
