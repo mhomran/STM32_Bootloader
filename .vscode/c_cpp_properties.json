@@ -12,10 +12,9 @@
                 "_UNICODE",
                 "STM32F407xx"
             ],
-            "compilerPath": "C:\\MinGW\\bin\\gcc.exe",
-            "cStandard": "gnu17",
-            "cppStandard": "gnu++14",
-            "intelliSenseMode": "windows-gcc-x86"
+            "compilerPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin\\arm-none-eabi-gcc.exe",
+            "cStandard": "gnu99",
+            "intelliSenseMode": "gcc-arm"
         }
     ],
     "version": 4
