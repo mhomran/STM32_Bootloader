@@ -2,6 +2,7 @@
 #include "port.h"
 #include "serial.h"
 #include "packet.h"
+#include "eeprom_stm32f407vg.h"
 
 int 
 main(void) 
@@ -18,6 +19,7 @@ main(void)
   Packet_Init();
   Serial_Init();
   BlueLed_Init();
+  Eeprom_Init();
 
   //interrupts with the same or higher priority are not masked any more
   __set_BASEPRI(0); 
