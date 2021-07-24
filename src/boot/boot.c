@@ -10,6 +10,7 @@
  */
 
 #include <stdio.h>
+#include "stm32f4xx_hal.h"
 #include "boot.h"
 #include "packet.h"
 
@@ -53,7 +54,8 @@ Boot_Handler(HexPacket_t* Packet)
       break;
     case PACKET_TYPE_RESET:
       {
-
+        //Stop the tick, so the wdg isn't fed.
+        HAL_SuspendTick();
       }
       break;
     default:
