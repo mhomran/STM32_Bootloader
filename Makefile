@@ -22,7 +22,7 @@ SIZE          := arm-none-eabi-size
 CFLAGS_CMN    := -mcpu=$(CPU) -mthumb -Wall -std=gnu99 -MMD -MP $(INC_FLAGS) $(DEFINES_FLAGS)
 CFLAGS        := $(CFLAGS_CMN) -O0 -g 
 CFLAGS_RL     := $(CFLAGS_CMN) -O3 
-LDFLAGS       := -mcpu=$(CPU) -mthumb --specs=nano.specs -T $(LSCRIPT) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
+LDFLAGS       := -mcpu=$(CPU) -mthumb -nostdlib -T $(LSCRIPT) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map
 MODE          := debug
 
 $(BUILD_DIR)/$(TARGET): $(OBJS)

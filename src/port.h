@@ -11,4 +11,11 @@
 #define USART1_RX_PIN GPIO_PIN_7  
 #define USART1_RX_PORT GPIOB
 
+//Development error codes
+typedef enum {
+  ERR_DEV_GEN_NULL_PTR,
+  ERR_PACKET_CHECKSUM,
+  ERR_PACKET_WRONG_TYPE
+} Error_t;
+
 #endif

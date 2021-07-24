@@ -9,6 +9,10 @@
  * 
  */
 
+#define PACKET_HEADER_SIZE 5
+#define PACKET_MAX_DATA_SIZE 255
+#define PACKET_MAX_SIZE (PACKET_MAX_DATA_SIZE+PACKET_HEADER_SIZE) 
+
 #include <stdio.h>
 #include "stm32f4xx_hal.h"
 #include "serial.h"
@@ -30,7 +34,8 @@ UART_HandleTypeDef gUart1Handle;
 DMA_HandleTypeDef gDma2Usart1TxHandle;
 DMA_HandleTypeDef gDma2Usart1RxHandle;
 static HexPacket_t gPacket;
-static const char gAPIError[] = "[ERROR] in %s\r\n";
+
+static uint8_t gpPacketBuff[PACKET_MAX_SIZE];
 
 void 
 HAL_UART_MspInit(UART_HandleTypeDef *hsart)
@@ -62,7 +67,6 @@ HAL_UART_MspInit(UART_HandleTypeDef *hsart)
       gDma2Usart1TxHandle.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
       if (HAL_DMA_Init(&gDma2Usart1TxHandle) != HAL_OK)
         {
-          printf("[ERROR] HAL_DMA_Init\n");
         }
 
       __HAL_LINKDMA(&gUart1Handle,hdmatx,gDma2Usart1TxHandle);
@@ -80,7 +84,6 @@ HAL_UART_MspInit(UART_HandleTypeDef *hsart)
       gDma2Usart1RxHandle.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
       if (HAL_DMA_Init(&gDma2Usart1RxHandle) != HAL_OK)
         {
-          printf("[ERROR] HAL_DMA_Init\n");
         }
 
       __HAL_LINKDMA(&gUart1Handle,hdmarx,gDma2Usart1RxHandle);
@@ -108,22 +111,14 @@ Serial_Init(void)
 
   if (HAL_UART_Init(&gUart1Handle) != HAL_OK)
     {
-      printf("[ERROR] HAL_UART_Init\n");
     }
 
   if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.len), sizeof(gPacket.len)))
     {
-      printf("[ERROR] can't receive first byte\n");
     }
-}
 
-int 
-_write(int file, char *ptr, int len) 
-{ 
-  //len-1 to exclude \n since it's used only for stdout flushing. 
-  return HAL_UART_Transmit_DMA(&gUart1Handle, (uint8_t*)ptr, len-1);
+  gPacket.data = gpPacketBuff;
 }
-
 
 /**
   * @brief  Rx Transfer completed callbacks.
@@ -157,7 +152,6 @@ StateMachine(void)
         if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, (uint8_t*)&(gPacket.addr),
          sizeof(gPacket.addr))) 
           {
-            printf(gAPIError, "HEX_STATE_LEN");
           }
       }
       break;
@@ -167,7 +161,6 @@ StateMachine(void)
         if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.type),
          sizeof(gPacket.type)))
           {
-            printf(gAPIError, "HEX_STATE_ADDR");
           }
       }
       break;
@@ -176,7 +169,6 @@ StateMachine(void)
         state = HEX_STATE_DATA;
         if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, gPacket.data, gPacket.len))
           {
-            printf(gAPIError, "HEX_STATE_TYPE");
           }
       }
       break;
@@ -186,7 +178,6 @@ StateMachine(void)
         if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.checksum),
          sizeof(gPacket.checksum)))
           {
-            printf(gAPIError, "HEX_STATE_DATA");
           }
       }
       break;
@@ -196,13 +187,11 @@ StateMachine(void)
         Packet_Handler(&gPacket);
         if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, &(gPacket.len), sizeof(gPacket.len)))
           {
-            printf(gAPIError, "HEX_STATE_CC");
           }
       }
       break;
     default:
       {
-        printf("[ERROR] State Machine unknown state");
       }
       break;
   }
@@ -212,4 +201,20 @@ void
 Serial_RegesterPacketCallback(void(*pPacket_Handler)(HexPacket_t*))
 {
   Packet_Handler = pPacket_Handler;
+}
+
+void 
+Serial_Send(HexPacket_t* Packet)
+{
+  gpPacketBuff[0] = Packet->len;
+  gpPacketBuff[1] = (uint8_t)((Packet->addr & 0xFF00) >> 8);
+  gpPacketBuff[2] = (uint8_t)(Packet->addr & 0xFF);
+  gpPacketBuff[3] = Packet->type;
+  for(uint8_t i = 0; i < Packet->len; i++)
+    {
+      gpPacketBuff[4+i] = Packet->data[i];
+    }
+  gpPacketBuff[4+Packet->len] = Packet->checksum;
+
+  HAL_UART_Transmit_DMA(&gUart1Handle, gpPacketBuff, PACKET_HEADER_SIZE+Packet->len);
 }
