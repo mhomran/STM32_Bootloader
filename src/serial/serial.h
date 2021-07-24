@@ -19,8 +19,8 @@ extern "C" {
 #endif
 
 void Serial_Init(void);
-void Serial_Send(HexPacket_t*);
-void Serial_RegesterPacketCallback(void(*pPacket_Handler)(HexPacket_t*));
+void Serial_Send(Packet_t*);
+void Serial_RegesterPacketCallback(void(*pPacket_Handler)(Packet_t*));
 
 #ifdef __cplusplus
 }

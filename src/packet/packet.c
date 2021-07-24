@@ -14,14 +14,14 @@
 #include "packet.h"
 #include "serial.h"
 #include "port.h"
+#include "error.h"
 
-static void Packet_Handler(HexPacket_t* Packet);
-inline static uint8_t Packet_Checksum(HexPacket_t* Packet);
+static void Packet_Handler(Packet_t* Packet);
+inline static uint8_t Packet_Checksum(Packet_t* Packet);
 inline static uint8_t Packet_IsCorrectType(uint8_t);
-static void (*Boot_Handler)(HexPacket_t*);
+static void (*Boot_Handler)(Packet_t*);
 
-static HexPacket_t gPacket;
-static uint8_t gErrorCode;
+static Packet_t gPacket;
 
 void 
 Packet_Init(void)
@@ -30,7 +30,7 @@ Packet_Init(void)
 }
 
 static void 
-Packet_Handler(HexPacket_t* Packet)
+Packet_Handler(Packet_t* Packet)
 {
   if(Packet_Checksum(Packet) != Packet->checksum)
     {
@@ -50,7 +50,7 @@ Packet_Handler(HexPacket_t* Packet)
 }
 
 inline static uint8_t 
-Packet_Checksum(HexPacket_t* Packet)
+Packet_Checksum(Packet_t* Packet)
 {
   uint8_t sum = 0;
   sum += Packet->len;
@@ -70,7 +70,7 @@ Packet_Checksum(HexPacket_t* Packet)
 }
 
 void 
-Packet_RegesterBootCallback(void(*pBoot_Handler)(HexPacket_t*))
+Packet_RegesterBootCallback(void(*pBoot_Handler)(Packet_t*))
 {
   Boot_Handler = pBoot_Handler;
 }
@@ -93,9 +93,8 @@ Packet_IsCorrectType(uint8_t Type)
     Type != PACKET_TYPE_DATA_RECORD &&
     Type != PACKET_TYPE_EOF_RECORD &&
     Type != PACKET_TYPE_EXTENDED_LINEAR_ADDR_RECORD &&
-    Type != PACKET_TYPE_ERASE_SECTOR_IN_BANK2 &&
-    Type != PACKET_TYPE_RESET &&
-    Type != PACKET_TYPE_ERR
+    Type < PACKET_TYPE_END &&
+    Type > PACKET_TYPE_START
     )
     {
       return 0;

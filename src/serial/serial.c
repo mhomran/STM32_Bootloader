@@ -28,12 +28,12 @@ typedef enum
 }HexState_t;
 
 inline static void StateMachine(void);
-static void (*Packet_Handler)(HexPacket_t*);
+static void (*Packet_Handler)(Packet_t*);
 
 UART_HandleTypeDef gUart1Handle;
 DMA_HandleTypeDef gDma2Usart1TxHandle;
 DMA_HandleTypeDef gDma2Usart1RxHandle;
-static HexPacket_t gPacket;
+static Packet_t gPacket;
 
 static uint8_t gpPacketBuff[PACKET_MAX_SIZE];
 
@@ -209,13 +209,13 @@ StateMachine(void)
 }
 
 void 
-Serial_RegesterPacketCallback(void(*pPacket_Handler)(HexPacket_t*))
+Serial_RegesterPacketCallback(void(*pPacket_Handler)(Packet_t*))
 {
   Packet_Handler = pPacket_Handler;
 }
 
 void 
-Serial_Send(HexPacket_t* Packet)
+Serial_Send(Packet_t* Packet)
 {
   gpPacketBuff[0] = Packet->len;
   gpPacketBuff[1] = (uint8_t)((Packet->addr & 0xFF00) >> 8);

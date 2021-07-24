@@ -13,14 +13,22 @@
 #ifndef PACKET_H
 #define PACKET_H
 
-#define PACKET_TYPE_DATA_RECORD                          ((uint8_t)0)
-#define PACKET_TYPE_EOF_RECORD                           ((uint8_t)1)
-#define PACKET_TYPE_EXTENDED_LINEAR_ADDR_RECORD          ((uint8_t)4)
-#define PACKET_TYPE_ERASE_SECTOR_IN_BANK2                ((uint8_t)6)
-#define PACKET_TYPE_RESET                                ((uint8_t)7)
-#define PACKET_TYPE_ERR                                  ((uint8_t)8)
+#define PACKET_TYPE_DATA_RECORD                          ((PacketType_t)0)
+#define PACKET_TYPE_EOF_RECORD                           ((PacketType_t)1)
+#define PACKET_TYPE_EXTENDED_LINEAR_ADDR_RECORD          ((PacketType_t)4)
 
 #include <inttypes.h>
+
+typedef enum {
+  PACKET_TYPE_START = 5,
+  PACKET_TYPE_LOCK_FLASH,
+  PACKET_TYPE_UNLOCK_FLASH,
+  PACKET_TYPE_ERASE_SECTOR_IN_BANK2,
+  PACKET_TYPE_ERASE_IMAGE,
+  PACKET_TYPE_RESET,
+  PACKET_TYPE_ERR,
+  PACKET_TYPE_END
+} PacketType_t;
 
 typedef struct {
   uint8_t len;
@@ -28,15 +36,15 @@ typedef struct {
   uint8_t* data;
   uint8_t type;
   uint8_t checksum;
-} HexPacket_t;
-  
+} Packet_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void Packet_Init(void);
 void Packet_Send(uint8_t len, uint16_t address, uint8_t type, uint8_t* data);
-void Packet_RegesterBootCallback(void(*pBoot_Handler)(HexPacket_t*));
+void Packet_RegesterBootCallback(void(*pBoot_Handler)(Packet_t*));
 
 #ifdef __cplusplus
 }
