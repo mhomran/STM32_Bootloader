@@ -1,0 +1,51 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug",
+      "cwd": "${workspaceRoot}",
+      "executable": "./build/output.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "device": "STM32F407VG",
+      "interface": "swd",
+      "configFiles": [
+        "board/stm32f4discovery.cfg"
+      ],
+      "svdFile": "./STM32F40x.svd",
+      "preRestartCommands": [
+        "monitor reset halt"
+      ],
+      "postLaunchCommands": [
+        "monitor reset halt"
+      ]
+    },
+
+    {
+      "name": "Flash and Debug",
+      "cwd": "${workspaceRoot}",
+      "executable": "./build/output.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "device": "STM32F407VG",
+      "interface": "swd",
+      "configFiles": [
+        "board/stm32f4discovery.cfg"
+      ],
+      "svdFile": "./STM32F40x.svd",
+      "preRestartCommands": [
+        "monitor reset halt"
+      ],
+      "preLaunchCommands": [
+        "make"
+      ],
+      "postLaunchCommands": [
+        "monitor reset halt",
+        "monitor flash write_image erase build/output.elf",
+        "monitor reset halt"
+      ]
+    }
+  ]
+}
