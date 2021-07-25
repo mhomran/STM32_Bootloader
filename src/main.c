@@ -112,8 +112,8 @@ IWDG_Config(void)
   IWDG_HandleTypeDef iwdg_handle = {0};
 
   iwdg_handle.Instance = IWDG;
-  iwdg_handle.Init.Prescaler = IWDG_PRESCALER_4;
-  iwdg_handle.Init.Reload = IWDG_2_MS; 
+  iwdg_handle.Init.Prescaler = IWDG_PRESCALER_32;
+  iwdg_handle.Init.Reload = IWDG_4_S; 
   
   if(HAL_IWDG_Init(&iwdg_handle) != HAL_OK)
   {

@@ -46,6 +46,35 @@ Packet_Handler(Packet_t* Packet)
       return;
     }
   
+  switch(Packet->type)
+  {
+    case PACKET_TYPE_ERASE_SECTOR:
+      {
+        if(Packet->len != 1)
+          {
+            gErrorCode = ERR_BOOT_SECTOR_ERASE;
+            Packet_Send(1, 0, PACKET_TYPE_ERR, &gErrorCode);
+            return;
+          }
+      }
+      break;
+    case PACKET_TYPE_ERASE_IMAGE:
+      {
+        if(Packet->len != 1)
+          {
+            gErrorCode = ERR_BOOT_IMAGE_ERASE;
+            Packet_Send(1, 0, PACKET_TYPE_ERR, &gErrorCode);
+            return;
+          }
+      }
+      break;
+    default:
+      {
+        //UNREACHABLE
+      }
+      break;
+  }
+  
   Boot_Handler(Packet);
 }
 
@@ -93,8 +122,8 @@ Packet_IsCorrectType(uint8_t Type)
     Type != PACKET_TYPE_DATA_RECORD &&
     Type != PACKET_TYPE_EOF_RECORD &&
     Type != PACKET_TYPE_EXTENDED_LINEAR_ADDR_RECORD &&
-    Type < PACKET_TYPE_END &&
-    Type > PACKET_TYPE_START
+    Type >= PACKET_TYPE_END &&
+    Type <= PACKET_TYPE_START
     )
     {
       return 0;

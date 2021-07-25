@@ -1,7 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define IWDG_2_MS 16
+#define IWDG_4_S 0xFFF
 
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal.h"
