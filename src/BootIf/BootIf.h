@@ -11,11 +11,15 @@
 #ifndef BOOT_H_
 #define BOOT_H_
 
+#include "PduR.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void Boot_Init(void);
+void BootIf_Init(void);
+void BootIf_RxIndication(PduId_t id, PduInfo_t* pdu);
+void BootIf_TxConfirmation(PduId_t id);
 
 #ifdef __cplusplus
 }

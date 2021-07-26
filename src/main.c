@@ -1,8 +1,9 @@
 #include "main.h"
 #include "port.h"
-#include "serial.h"
-#include "packet.h"
-#include "boot.h"
+#include "Uart.h"
+#include "UartIf.h"
+#include "PduR.h"
+#include "BootIf.h"
 #include "eeprom_stm32f407vg.h"
 
 int 
@@ -17,9 +18,11 @@ main(void)
   IWDG_Config();
   SystemClock_Config();
   
-  Boot_Init();
-  Packet_Init();
-  Serial_Init();
+  Uart_Init();
+  UartIf_Init();
+  PduR_Init();
+  BootIf_Init();
+
   BlueLed_Init();
   Eeprom_Init();
 
