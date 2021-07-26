@@ -49,6 +49,7 @@ DMA_HandleTypeDef gDma2Usart1TxHandle;
 DMA_HandleTypeDef gDma2Usart1RxHandle;
 
 static HexFormat_t gRxHexFrame;
+static uint8_t gRxHexFrameBuff[HEX_FRAME_MAX_SIZE];
 static uint8_t gRxHexFrameDataBuff[HEX_FRAME_MAX_DATA_BUFF_SIZE];
 static uint8_t gTxHexFrameDataBuff[HEX_FRAME_MAX_DATA_BUFF_SIZE];
 
@@ -133,10 +134,11 @@ Uart_Init(void)
 
   if (HAL_UART_Init(&gUart1Handle) != HAL_OK)
     {
-      
     }
 
-  if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, &(gRxHexFrame.len), sizeof(gRxHexFrame.len)))
+  __HAL_UART_ENABLE_IT(&gUart1Handle, UART_IT_IDLE);
+
+  if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, gRxHexFrameBuff, HEX_FRAME_MAX_SIZE))
     {
     }
 
@@ -193,7 +195,7 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if(huart->Instance == USART1)
     {
-      Uart_StateMachine();   
+      //Uart_StateMachine();   
     }
 }
 
@@ -295,4 +297,19 @@ Uart_StateMachine(void)
       }
       break;
   }
+}
+
+void 
+UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart)
+{
+  uint8_t len;
+
+  if(huart->Instance == USART1)
+    {
+      HAL_UART_RxCpltCallback(huart);
+      len = HEX_FRAME_MAX_SIZE - huart->hdmarx->Instance->NDTR;
+      if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, gRxHexFrameBuff, HEX_FRAME_MAX_SIZE))
+        {
+        }
+    }
 }

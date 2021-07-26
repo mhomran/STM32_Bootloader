@@ -1,10 +1,4 @@
 #include "main.h"
-#include "port.h"
-#include "Uart.h"
-#include "UartIf.h"
-#include "PduR.h"
-#include "BootIf.h"
-#include "eeprom_stm32f407vg.h"
 
 int 
 main(void) 

@@ -3,6 +3,7 @@
 extern UART_HandleTypeDef gUart1Handle;
 extern DMA_HandleTypeDef gDma2Usart1TxHandle;
 extern DMA_HandleTypeDef gDma2Usart1RxHandle;
+void UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart);
 
 /**
   * @brief This function handles System tick timer.
@@ -31,6 +32,14 @@ void SysTick_Handler(void)
 void 
 USART1_IRQHandler(void)
 { 
+  if(__HAL_UART_GET_FLAG(&gUart1Handle, UART_FLAG_IDLE))
+    {
+      __HAL_UART_CLEAR_FLAG(&gUart1Handle, UART_FLAG_IDLE);
+      HAL_UART_AbortReceive(&gUart1Handle);
+      UART1_IDLE_IRQHandler(&gUart1Handle);
+    }
+  
+  //clears the TX and RX flags
   HAL_UART_IRQHandler(&gUart1Handle);
 }
 
