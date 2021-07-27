@@ -21,10 +21,6 @@
 #define BOOT_IF_IMG_3_SECTOR_0 10
 #define BOOT_IF_IMG_3_SECTOR_1 11
 
-#define BOOT_IF_TYPE_DATA_RECORD                          ((PacketType_t)0)
-#define BOOT_IF_TYPE_EOF_RECORD                           ((PacketType_t)1)
-#define BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD          ((PacketType_t)4)
-
 #define ADDR_OFFSET 0
 #define TYPE_OFFSET 2
 #define DATA_OFFSET 3
@@ -32,6 +28,7 @@
 #define FRAME_MAX_DATA_BUFF_SIZE 16
 #define FRAME_MAX_SIZE (FRAME_HEADER_SIZE + FRAME_MAX_DATA_BUFF_SIZE)
 #define FRAME_CRC_SIZE 4
+#define FRAME_DATA_TO_PROGRAM_SIZE 16
 
 #include <stdio.h>
 #include "stm32f4xx_hal.h"
@@ -42,7 +39,10 @@
 
 
 typedef enum {
-  BOOT_IF_TYPE_START = 5,
+  BOOT_IF_TYPE_DATA_RECORD,
+  BOOT_IF_TYPE_EOF_RECORD,
+  BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD,
+  BOOT_IF_TYPE_START,
   BOOT_IF_TYPE_LOCK_FLASH,
   BOOT_IF_TYPE_UNLOCK_FLASH,
   BOOT_IF_TYPE_ERASE_SECTOR,
@@ -76,21 +76,43 @@ BootIf_Init(void)
 static Error_t 
 BootIf_Handler(PduInfo_t* pdu)
 { 
+  static uint16_t AddrSecondHalfWord;
+  uint32_t PgAddr;
+  uint32_t DataWord;
+  uint8_t i;
+  uint8_t DataLen;
+
   switch(pdu->data[TYPE_OFFSET])
   {
     case BOOT_IF_TYPE_DATA_RECORD: 
       {
+        DataLen = pdu->len - (FRAME_HEADER_SIZE - FRAME_CRC_SIZE);
+        if(DataLen != FRAME_DATA_TO_PROGRAM_SIZE)
+          {
+            return ERR_BOOT_IF_PROGRAM_FORMAT;
+          }
 
+        PgAddr = (AddrSecondHalfWord << 16) | pdu->data[ADDR_OFFSET];
+        //to not cross the 128-bit row boundary causing alignment error
+        if((PgAddr % 4) != 0)
+          {
+            return ERR_BOOT_IF_PROGRAM_ADDR_ALIGN;
+          }
+
+        for(i = 0; i < FRAME_DATA_TO_PROGRAM_SIZE; i = i + 4)
+          {
+            DataWord = *((uint32_t*)&pdu->data[DATA_OFFSET + i]);
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, PgAddr + i, DataWord);
+          }
       }
       break;
     case BOOT_IF_TYPE_EOF_RECORD:
       {
-
       }
       break;
     case BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD:
       {
-
+        AddrSecondHalfWord = *((uint16_t*)&(pdu->data[ADDR_OFFSET]));
       }
       break;
     case BOOT_IF_TYPE_LOCK_FLASH:
