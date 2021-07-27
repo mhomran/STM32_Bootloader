@@ -25,14 +25,13 @@
 #define BOOT_IF_TYPE_EOF_RECORD                           ((PacketType_t)1)
 #define BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD          ((PacketType_t)4)
 
-#define HEX_ADDR_OFFSET 0
-#define HEX_TYPE_OFFSET 2
-#define HEX_DATA_OFFSET 3
-#define HEX_FRAME_CRC_SIZE 4 
-#define HEX_FRAME_LEN_SIZE 1
-#define HEX_FRAME_HEADER_SIZE 8 //1 len, 2 addr, 1 type, 4 CRC
-#define HEX_FRAME_MAX_DATA_BUFF_SIZE 16
-#define HEX_FRAME_MAX_SIZE (HEX_FRAME_HEADER_SIZE + HEX_FRAME_MAX_DATA_BUFF_SIZE)
+#define ADDR_OFFSET 0
+#define TYPE_OFFSET 2
+#define DATA_OFFSET 3
+#define FRAME_HEADER_SIZE 7 //2 addr, 1 type, 4 CRC
+#define FRAME_MAX_DATA_BUFF_SIZE 16
+#define FRAME_MAX_SIZE (FRAME_HEADER_SIZE + FRAME_MAX_DATA_BUFF_SIZE)
+#define FRAME_CRC_SIZE 4
 
 #include <stdio.h>
 #include "stm32f4xx_hal.h"
@@ -54,7 +53,7 @@ typedef enum {
   BOOT_IF_TYPE_END
 } PacketType_t;
 
-static uint8_t gTxHexFrameDataBuff[HEX_FRAME_MAX_DATA_BUFF_SIZE];
+static uint8_t gTxHexFrameDataBuff[FRAME_MAX_DATA_BUFF_SIZE];
 static PduInfo_t gTxPdu;
 
 static Error_t BootIf_Handler(PduInfo_t* pdu);
@@ -77,7 +76,7 @@ BootIf_Init(void)
 static Error_t 
 BootIf_Handler(PduInfo_t* pdu)
 { 
-  switch(pdu->data[HEX_TYPE_OFFSET])
+  switch(pdu->data[TYPE_OFFSET])
   {
     case BOOT_IF_TYPE_DATA_RECORD: 
       {
@@ -109,7 +108,7 @@ BootIf_Handler(PduInfo_t* pdu)
       break;
     case BOOT_IF_TYPE_ERASE_SECTOR:
       {
-        if(BootIf_EraseSector(pdu->data[HEX_DATA_OFFSET]) != HAL_OK)
+        if(BootIf_EraseSector(pdu->data[DATA_OFFSET]) != HAL_OK)
           {
             return ERR_BOOT_IF_SECTOR_ERASE;
           }
@@ -117,7 +116,7 @@ BootIf_Handler(PduInfo_t* pdu)
       break;
     case BOOT_IF_TYPE_ERASE_IMAGE:
       {
-        if(BootIf_EraseImage(pdu->data[HEX_DATA_OFFSET]) != HAL_OK)
+        if(BootIf_EraseImage(pdu->data[DATA_OFFSET]) != HAL_OK)
           {
             return ERR_BOOT_IF_IMAGE_ERASE;
           }
@@ -238,12 +237,11 @@ BootIf_RxIndication(PduId_t id, PduInfo_t* pdu)
 static StdReturn_t 
 BootIf_TransmitErrorCode(PduId_t id, Error_t err)
 {
-  gTxPdu.len = HEX_FRAME_HEADER_SIZE - HEX_FRAME_CRC_SIZE - HEX_FRAME_LEN_SIZE;
+  gTxPdu.len = FRAME_HEADER_SIZE - FRAME_CRC_SIZE;
   gTxPdu.len += 1; //data size
-  gTxPdu.data[0] = 0; //address 0
-  gTxPdu.data[1] = 0; //address 0
-  gTxPdu.data[2] = BOOT_IF_TYPE_ERR; 
-  gTxPdu.data[3] = err; 
+  *((uint16_t*)&gTxPdu.data[ADDR_OFFSET]) = 0; //address 0
+  gTxPdu.data[TYPE_OFFSET] = BOOT_IF_TYPE_ERR; 
+  gTxPdu.data[DATA_OFFSET] = err; 
 
   return PduR_Transmit(id, &gTxPdu);
 }
@@ -251,10 +249,9 @@ BootIf_TransmitErrorCode(PduId_t id, Error_t err)
 static StdReturn_t 
 BootIf_TransmitAck(PduId_t id)
 {
-  gTxPdu.len = HEX_FRAME_HEADER_SIZE - HEX_FRAME_CRC_SIZE - HEX_FRAME_LEN_SIZE;
-  gTxPdu.data[0] = 0; //address 0
-  gTxPdu.data[1] = 0; //address 0
-  gTxPdu.data[2] = BOOT_IF_TYPE_ACK; 
+  gTxPdu.len = FRAME_HEADER_SIZE - FRAME_CRC_SIZE;
+  *((uint16_t*)&gTxPdu.data[ADDR_OFFSET]) = 0; //address 0
+  gTxPdu.data[TYPE_OFFSET] = BOOT_IF_TYPE_ACK; 
 
   return PduR_Transmit(id, &gTxPdu);
 }

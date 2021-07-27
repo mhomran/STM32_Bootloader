@@ -11,14 +11,14 @@
  */
 #define UART_HW_NO 1
 
-#define HEX_FRAME_HEADER_SIZE 8 //1 len, 2 addr, 1 type, 4 CRC
-#define HEX_FRAME_MAX_DATA_BUFF_SIZE 16
-#define HEX_FRAME_MAX_SIZE (HEX_FRAME_HEADER_SIZE + HEX_FRAME_MAX_DATA_BUFF_SIZE)
+#define FRAME_HEADER_SIZE 7 //2 addr, 1 type, 4 CRC
+#define FRAME_MAX_DATA_BUFF_SIZE 16
+#define FRAME_MAX_SIZE (FRAME_HEADER_SIZE + FRAME_MAX_DATA_BUFF_SIZE)
+#define FRAME_CRC_SIZE 4
 
-#define HEX_LEN_OFFSET 0
-#define HEX_ADDR_OFFSET 1
-#define HEX_TYPE_OFFSET 3
-#define HEX_DATA_OFFSET 4
+#define ADDR_OFFSET 0
+#define TYPE_OFFSET 2
+#define DATA_OFFSET 3
 
 #include "stm32f4xx_hal.h"
 #include "Uart.h"
@@ -37,28 +37,30 @@ typedef struct {
 
 typedef enum
 {
-  HEX_STATE_LEN,
-  HEX_STATE_ADDR,
-  HEX_STATE_TYPE,
-  HEX_STATE_DATA,
-  HEX_STATE_CRC
+  STATE_LEN,
+  STATE_ADDR,
+  STATE_TYPE,
+  STATE_DATA,
+  STATE_CRC
 }HexState_t;
 
 UART_HandleTypeDef gUart1Handle;
 DMA_HandleTypeDef gDma2Usart1TxHandle;
 DMA_HandleTypeDef gDma2Usart1RxHandle;
+CRC_HandleTypeDef gCrcHandle;
 
 static HexFormat_t gRxHexFrame;
-static uint8_t gRxHexFrameBuff[HEX_FRAME_MAX_SIZE];
-static uint8_t gRxHexFrameDataBuff[HEX_FRAME_MAX_DATA_BUFF_SIZE];
-static uint8_t gTxHexFrameDataBuff[HEX_FRAME_MAX_DATA_BUFF_SIZE];
+static uint8_t gRxHexFrameBuff[FRAME_MAX_SIZE];
+static uint8_t gRxHexFrameDataBuff[FRAME_MAX_DATA_BUFF_SIZE];
+static uint8_t gTxHexFrameDataBuff[FRAME_MAX_DATA_BUFF_SIZE];
+static uint32_t gCrcBuff[FRAME_MAX_SIZE-FRAME_CRC_SIZE]; //
 
 static PduInfo_t gUartIfPdu;
-static uint8_t gUartIfPduDataBuff[HEX_FRAME_MAX_SIZE];
+static uint8_t gUartIfPduDataBuff[FRAME_MAX_SIZE];
 
 static uint8_t gUartHwTxPduId[UART_HW_NO];
 
-inline static void Uart_StateMachine(void);
+static uint32_t Uart_CalculateCRC(uint8_t*, uint8_t);
 
 void 
 HAL_UART_MspInit(UART_HandleTypeDef *hsart)
@@ -138,9 +140,13 @@ Uart_Init(void)
 
   __HAL_UART_ENABLE_IT(&gUart1Handle, UART_IT_IDLE);
 
-  if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, gRxHexFrameBuff, HEX_FRAME_MAX_SIZE))
+  if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, gRxHexFrameBuff, FRAME_MAX_SIZE))
     {
     }
+
+  __HAL_RCC_CRC_CLK_ENABLE();
+  gCrcHandle.Instance = CRC;
+  HAL_CRC_Init(&gCrcHandle);
 
   gRxHexFrame.data = gRxHexFrameDataBuff;
   gUartIfPdu.data = gUartIfPduDataBuff;
@@ -149,25 +155,26 @@ Uart_Init(void)
 StdReturn_t 
 Uart_Write(UartHw_t Uart, UartPdu_t* UartPdu)
 {
+  uint8_t i;
+  uint32_t crc = 0x01020304;
+
   switch(Uart)
   {
     case UART_HW_1:
       {
-        //TODO: remove the length byte when you implement idle line
-        gTxHexFrameDataBuff[HEX_LEN_OFFSET] = UartPdu->len - 3; //- (type+address)
-        gTxHexFrameDataBuff[HEX_ADDR_OFFSET] = UartPdu->data[0];
-        gTxHexFrameDataBuff[HEX_ADDR_OFFSET+1] = UartPdu->data[1];
-        gTxHexFrameDataBuff[HEX_TYPE_OFFSET] = UartPdu->data[2];
-        uint8_t i;
-        for(i = 0; i < gTxHexFrameDataBuff[HEX_LEN_OFFSET]; i++)
+        *((uint16_t*)&gTxHexFrameDataBuff[ADDR_OFFSET]) = *((uint16_t*)&UartPdu->data[ADDR_OFFSET]);
+        gTxHexFrameDataBuff[TYPE_OFFSET] = UartPdu->data[TYPE_OFFSET];
+        for(i = DATA_OFFSET; i < UartPdu->len; i++)
           {
-            gTxHexFrameDataBuff[HEX_DATA_OFFSET+i] = UartPdu->data[i+3];
+            gTxHexFrameDataBuff[i] = UartPdu->data[i];
+            gCrcBuff[i - DATA_OFFSET] = (uint32_t)(UartPdu->data[i]);
           }
 
-        //gTxHexFrameDataBuff[i] = dummy crc
+        crc = HAL_CRC_Calculate(&gCrcHandle, gCrcBuff, UartPdu->len);
+        *((uint32_t*)&gTxHexFrameDataBuff[i]) = crc;
 
         if(HAL_OK != HAL_UART_Transmit_DMA(&gUart1Handle, gTxHexFrameDataBuff, 
-        gTxHexFrameDataBuff[HEX_LEN_OFFSET] + HEX_FRAME_HEADER_SIZE))
+        UartPdu->len + sizeof(crc)))
           {
             return E_NOT_OK;
           }
@@ -185,21 +192,6 @@ Uart_Write(UartHw_t Uart, UartPdu_t* UartPdu)
 }
 
 /**
-  * @brief  Rx Transfer completed callbacks.
-  * @param  huart  Pointer to a UART_HandleTypeDef structure that contains
-  *                the configuration information for the specified UART module.
-  * @retval None
-  */
-void 
-HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  if(huart->Instance == USART1)
-    {
-      //Uart_StateMachine();   
-    }
-}
-
-/**
   * @brief  Tx Transfer completed callbacks.
   * @param  huart  Pointer to a UART_HandleTypeDef structure that contains
   *                the configuration information for the specified UART module.
@@ -214,102 +206,54 @@ HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     }
 }
 
-/**
- * @brief state machine for the HEX file parsing
- * 
- */
-inline static void
-Uart_StateMachine(void)
-{
-  static HexState_t state = HEX_STATE_LEN;
-  
-  switch(state) 
-  {
-    case HEX_STATE_LEN:
-      {
-        state = HEX_STATE_ADDR;
-        if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, (uint8_t*)&(gRxHexFrame.addr),
-         sizeof(gRxHexFrame.addr))) 
-          {
-          }
-      }
-      break;
-    case HEX_STATE_ADDR:
-      {
-        state = HEX_STATE_TYPE;
-        if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, &(gRxHexFrame.type),
-         sizeof(gRxHexFrame.type)))
-          {
-          }
-      }
-      break;
-    case HEX_STATE_TYPE:
-      {
-        if(gRxHexFrame.len != 0)
-          {
-            state = HEX_STATE_DATA;
-            if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, gRxHexFrame.data, gRxHexFrame.len))
-              {
-              }
-          }
-        else
-          {
-            state = HEX_STATE_CRC;
-            if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, (uint8_t*)&(gRxHexFrame.crc),
-            sizeof(gRxHexFrame.crc)))
-              {
-              }
-          }
-      }
-      break;
-    case HEX_STATE_DATA:
-      {
-        state = HEX_STATE_CRC;
-        if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, (uint8_t*)&(gRxHexFrame.crc),
-        sizeof(gRxHexFrame.crc)))
-          {
-          }
-      }
-      break;
-    case HEX_STATE_CRC:
-      {
-        gUartIfPdu.len = gRxHexFrame.len + HEX_FRAME_HEADER_SIZE 
-        - sizeof(gRxHexFrame.len) - sizeof(gRxHexFrame.crc);
-
-        gUartIfPdu.data[0] = (uint8_t)(gRxHexFrame.addr & 0xFF);
-        gUartIfPdu.data[1] = (uint8_t)((gRxHexFrame.addr & 0xFF00) >> 8);
-        gUartIfPdu.data[2] = gRxHexFrame.type;
-        for(uint8_t i = 0; i < gRxHexFrame.len; i++)
-          {
-            gUartIfPdu.data[4+i] = gRxHexFrame.data[i];
-          }
-        
-        UartIf_RxIndication(UART_HW_1, &gUartIfPdu);
-        
-        state = HEX_STATE_LEN;
-        if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, &(gRxHexFrame.len), sizeof(gRxHexFrame.len)))
-          {
-          }
-      }
-      break;
-    default:
-      {
-      }
-      break;
-  }
-}
-
 void 
 UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart)
 {
   uint8_t len;
+  uint8_t i;
+  uint32_t rx_crc;
+  uint32_t gen_crc;
+  StdReturn_t state = E_OK;
+  
+  len = FRAME_MAX_SIZE - huart->hdmarx->Instance->NDTR;
+  
+  gUartIfPdu.len = len - sizeof(gRxHexFrame.crc);
 
+  *((uint16_t*)&gUartIfPdu.data[ADDR_OFFSET]) = *((uint16_t*)&gRxHexFrameBuff[ADDR_OFFSET]);
+  gUartIfPdu.data[TYPE_OFFSET] = gRxHexFrameBuff[TYPE_OFFSET];
+  for(i = DATA_OFFSET; i < len - sizeof(rx_crc); i++)
+    {
+      gUartIfPdu.data[i] = gRxHexFrameBuff[i];
+      gCrcBuff[i - DATA_OFFSET] = (uint32_t)gUartIfPdu.data[i];
+    }
+  
+  rx_crc = *((uint32_t*)&gRxHexFrameBuff[i]);
+  gen_crc = Uart_CalculateCRC(gUartIfPdu.data, gUartIfPdu.len);
+
+  if(rx_crc != gen_crc)
+    {
+      state = E_NOT_OK;
+    }
+  
   if(huart->Instance == USART1)
     {
-      HAL_UART_RxCpltCallback(huart);
-      len = HEX_FRAME_MAX_SIZE - huart->hdmarx->Instance->NDTR;
-      if(HAL_OK != HAL_UART_Receive_DMA(&gUart1Handle, gRxHexFrameBuff, HEX_FRAME_MAX_SIZE))
+      if(state == E_OK)
         {
+          UartIf_RxIndication(UART_HW_1, &gUartIfPdu);
+        }
+      if(HAL_UART_Receive_DMA(&gUart1Handle, gRxHexFrameBuff, FRAME_MAX_SIZE) != HAL_OK)
+        {
+          state = E_NOT_OK;
         }
     }
+}
+
+static uint32_t 
+Uart_CalculateCRC(uint8_t* pData, uint8_t Size)
+{
+  for(uint8_t i = 0; i < Size; i++)
+    {
+      gCrcBuff[i] = (uint32_t)pData[i];
+    }
+  return HAL_CRC_Calculate(&gCrcHandle, gCrcBuff, Size);
 }
