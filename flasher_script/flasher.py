@@ -34,7 +34,7 @@ ADDR_OFFSET = 0
 TYPE_OFFSET = 2
 DATA_OFFSET = 3
 
-SERIAL_TIME_OUT = 30
+SERIAL_TIME_OUT = 5
 
 class Flasher:
     def __init__(self, serial_port, baudrate):
@@ -59,29 +59,62 @@ class Flasher:
         return (crc & 0xFFFFFFFF)
     
     def _send_pdu(self, data):
+        success = False
         trials = 2
         trial = 0
-        for trial in range(2):
-            try:
-                trial = trial + 1
-                self.serial.flushInput()
-                self.serial.write(data)
+        while trial != trials:
+            trial = trial + 1
 
-                rx_data_bytes = self.serial.read(ACK_FRAME_SIZE)
-                pdu_type = struct.unpack_from("B", rx_data_bytes, offset=TYPE_OFFSET)[0]
-                crc_bytes = rx_data_bytes[-CRC_SIZE:]
-                crc = struct.unpack("I", crc_bytes)[0]
+            self.serial.flushInput()
+            self.serial.write(data)
 
-                if self._calculate_crc(rx_data_bytes[0:-CRC_SIZE]) != crc:
-                    continue
+            rx_data_bytes = self.serial.read(ACK_FRAME_SIZE)
+            if len(rx_data_bytes) != ACK_FRAME_SIZE:
+                print("Timeout")
+                continue
 
-                if pdu_type != PDU_TYPES.index('BOOT_IF_TYPE_ACK'):
-                    raise Exception("No ACK")
-                
-                return # success
-            except:
-                if trial == trials:
-                    raise Exception("Couldn't send the PDU")
+            pdu_type = struct.unpack_from("B", rx_data_bytes, offset=TYPE_OFFSET)[0]
+            crc_bytes = rx_data_bytes[-CRC_SIZE:]
+            crc = struct.unpack("I", crc_bytes)[0]
+
+            if self._calculate_crc(rx_data_bytes[0:-CRC_SIZE]) != crc:
+                print("CRC didn't match")
+                continue
+
+            if pdu_type != PDU_TYPES.index('BOOT_IF_TYPE_ACK'):
+                print("No ACK")
+                continue
+            
+            success = True  
+            break 
+        if success:
+            return
+        else:
+            raise Exception("Couldn't send the PDU") 
+
+    def _unlock_flash(self):
+        pdu = []
+        pdu.append(DUMMY_ADDR)
+        pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_UNLOCK_FLASH'))
+
+        pdu_bytes = struct.pack("HBH", *pdu)
+        crc = self._calculate_crc(pdu_bytes)
+        crc_bytes = struct.pack("I", crc)
+        pdu_bytes = pdu_bytes + crc_bytes
+
+        self._send_pdu(pdu_bytes)
+
+    def _lock_flash(self):
+        pdu = []
+        pdu.append(DUMMY_ADDR)
+        pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_LOCK_FLASH'))
+
+        pdu_bytes = struct.pack("HBH", *pdu)
+        crc = self._calculate_crc(pdu_bytes)
+        crc_bytes = struct.pack("I", crc)
+        pdu_bytes = pdu_bytes + crc_bytes
+
+        self._send_pdu(pdu_bytes)
 
     def flash_image(self, file_name, image_no):
         ih = IntelHex();
@@ -99,6 +132,8 @@ class Flasher:
         
         if IMAGE_ADDR_RANGE[image_no][0] > start_addr or end_addr > IMAGE_ADDR_RANGE[image_no][1]:
             raise Exception("addresses out of range of the image")
+
+        self._unlock_flash()
 
         pdu_addr = start_addr
         pdu = []
@@ -151,6 +186,26 @@ class Flasher:
                     
                 pdu_addr = pdu_addr + 16
 
+        self._lock_flash()
+
+    def erase_image(self, image_no):
+        self._unlock_flash()
+
+        pdu = []
+        pdu.append(DUMMY_ADDR)
+        pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_ERASE_IMAGE'))
+        pdu.append(image_no)
+
+        pdu_bytes = struct.pack("HBH", *pdu)
+        crc = self._calculate_crc(pdu_bytes)
+        crc_bytes = struct.pack("I", crc)
+        pdu_bytes = pdu_bytes + crc_bytes
+
+        self._send_pdu(pdu_bytes)
+
+        self._lock_flash()
+
+
 if __name__ == "__main__":
 
     parser_obj = boot_parser.init_argparse()
@@ -164,6 +219,8 @@ if __name__ == "__main__":
         action = args.action;
         if boot_parser.BOOT_OPTIONS_FLASH_IMAGE == action:
             flasher.flash_image(args.file, args.image)
+        elif boot_parser.BOOT_OPTIONS_ERASE_IMAGE == action:
+            flasher.erase_image(args.image)
     except Exception as e:
         print(e)
 
