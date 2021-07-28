@@ -28,7 +28,7 @@ def init_argparse() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         usage="%(prog)s [options] port...",
-        description="A bootloader for STM32F407VG board",
+        description="A bootloader for STM32F407VG MCU",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(

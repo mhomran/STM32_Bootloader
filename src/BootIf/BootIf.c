@@ -30,6 +30,8 @@
 #define FRAME_CRC_SIZE 4
 #define FRAME_DATA_TO_PROGRAM_SIZE 16
 
+#define DUMMY_ADDR 0
+
 #include <stdio.h>
 #include "stm32f4xx_hal.h"
 #include "BootIf.h"
@@ -42,15 +44,13 @@ typedef enum {
   BOOT_IF_TYPE_DATA_RECORD,
   BOOT_IF_TYPE_EOF_RECORD,
   BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD,
-  BOOT_IF_TYPE_START,
   BOOT_IF_TYPE_LOCK_FLASH,
   BOOT_IF_TYPE_UNLOCK_FLASH,
   BOOT_IF_TYPE_ERASE_SECTOR,
   BOOT_IF_TYPE_ERASE_IMAGE,
   BOOT_IF_TYPE_RESET,
   BOOT_IF_TYPE_ACK,
-  BOOT_IF_TYPE_ERR,
-  BOOT_IF_TYPE_END
+  BOOT_IF_TYPE_ERR
 } PacketType_t;
 
 static uint8_t gTxHexFrameDataBuff[FRAME_MAX_DATA_BUFF_SIZE];
@@ -61,6 +61,7 @@ static StdReturn_t BootIf_EraseSector(uint8_t Sector);
 static StdReturn_t BootIf_EraseImage(uint8_t ImgNo);
 static StdReturn_t BootIf_TransmitErrorCode(PduId_t id, Error_t err);
 static StdReturn_t BootIf_TransmitAck(PduId_t id);
+static StdReturn_t BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr);
 
 void 
 BootIf_Init(void) 
@@ -76,7 +77,8 @@ BootIf_Init(void)
 static Error_t 
 BootIf_Handler(PduInfo_t* pdu)
 { 
-  static uint16_t AddrSecondHalfWord;
+  static uint32_t AddrSecondHalfWord;
+  uint32_t AddrFirstHalfWord;
   uint32_t PgAddr;
   uint32_t DataWord;
   uint8_t i;
@@ -92,7 +94,8 @@ BootIf_Handler(PduInfo_t* pdu)
             return ERR_BOOT_IF_PROGRAM_FORMAT;
           }
 
-        PgAddr = (AddrSecondHalfWord << 16) | pdu->data[ADDR_OFFSET];
+        AddrFirstHalfWord = (uint32_t)(*((uint16_t*)&pdu->data[ADDR_OFFSET]));
+        PgAddr = (AddrSecondHalfWord << 16) | AddrFirstHalfWord;
         //to not cross the 128-bit row boundary causing alignment error
         if((PgAddr % 4) != 0)
           {
@@ -103,6 +106,11 @@ BootIf_Handler(PduInfo_t* pdu)
           {
             DataWord = *((uint32_t*)&pdu->data[DATA_OFFSET + i]);
             HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, PgAddr + i, DataWord);
+          }
+        
+        if(E_NOT_OK == BootIf_VerifyFlashing(&(pdu->data[DATA_OFFSET]), (uint8_t*)PgAddr))
+          {
+            return ERR_BOOT_IF_DATA_IS_NOT_WRITTEN;
           }
       }
       break;
@@ -261,18 +269,34 @@ BootIf_TransmitErrorCode(PduId_t id, Error_t err)
 {
   gTxPdu.len = FRAME_HEADER_SIZE - FRAME_CRC_SIZE;
   gTxPdu.len += 1; //data size
-  *((uint16_t*)&gTxPdu.data[ADDR_OFFSET]) = 0; //address 0
+  *((uint16_t*)&gTxPdu.data[ADDR_OFFSET]) = err; 
   gTxPdu.data[TYPE_OFFSET] = BOOT_IF_TYPE_ERR; 
-  gTxPdu.data[DATA_OFFSET] = err; 
 
   return PduR_Transmit(id, &gTxPdu);
+}
+
+static StdReturn_t 
+BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr)
+{
+  uint8_t read;
+  uint8_t sent;
+  for(uint8_t i = 0; i < FRAME_DATA_TO_PROGRAM_SIZE; i++)
+    {
+      read = *(i+start_addr);
+      sent = data[i];
+      if(read != sent)
+        {
+          return E_NOT_OK;
+        }
+    }
+  return E_OK;
 }
 
 static StdReturn_t 
 BootIf_TransmitAck(PduId_t id)
 {
   gTxPdu.len = FRAME_HEADER_SIZE - FRAME_CRC_SIZE;
-  *((uint16_t*)&gTxPdu.data[ADDR_OFFSET]) = 0; //address 0
+  *((uint16_t*)&gTxPdu.data[ADDR_OFFSET]) = DUMMY_ADDR; 
   gTxPdu.data[TYPE_OFFSET] = BOOT_IF_TYPE_ACK; 
 
   return PduR_Transmit(id, &gTxPdu);

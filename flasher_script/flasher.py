@@ -39,8 +39,8 @@ SERIAL_TIME_OUT = 5
 class Flasher:
     def __init__(self, serial_port, baudrate):
         try:
-            self.serial = serial.Serial(serial_port, baudrate=baudrate,
-             timeout=SERIAL_TIME_OUT)
+            self.serial = serial.Serial(serial_port, baudrate=baudrate)
+            # timeout=SERIAL_TIME_OUT)
         except :
             raise Exception(f"Couldn't open serial port: {serial_port}")
 
@@ -97,7 +97,7 @@ class Flasher:
         pdu.append(DUMMY_ADDR)
         pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_UNLOCK_FLASH'))
 
-        pdu_bytes = struct.pack("HBH", *pdu)
+        pdu_bytes = struct.pack("HB", *pdu)
         crc = self._calculate_crc(pdu_bytes)
         crc_bytes = struct.pack("I", crc)
         pdu_bytes = pdu_bytes + crc_bytes
@@ -109,7 +109,7 @@ class Flasher:
         pdu.append(DUMMY_ADDR)
         pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_LOCK_FLASH'))
 
-        pdu_bytes = struct.pack("HBH", *pdu)
+        pdu_bytes = struct.pack("HB", *pdu)
         crc = self._calculate_crc(pdu_bytes)
         crc_bytes = struct.pack("I", crc)
         pdu_bytes = pdu_bytes + crc_bytes
@@ -150,11 +150,10 @@ class Flasher:
             if extended_addr != ((pdu_addr & 0xFFFF0000) >> 16):
                 extended_addr = ((pdu_addr & 0xFFFF0000) >> 16)
 
-                pdu.append(DUMMY_ADDR)
-                pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD'))
                 pdu.append(extended_addr)
+                pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD'))
 
-                pdu_bytes = struct.pack("HBH", *pdu)
+                pdu_bytes = struct.pack("HB", *pdu)
                 crc = self._calculate_crc(pdu_bytes)
                 crc_bytes = struct.pack("I", crc)
                 pdu_bytes = pdu_bytes + crc_bytes

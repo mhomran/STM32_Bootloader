@@ -163,11 +163,14 @@ Uart_Write(UartHw_t Uart, UartPdu_t* UartPdu)
     case UART_HW_1:
       {
         *((uint16_t*)&gTxHexFrameDataBuff[ADDR_OFFSET]) = *((uint16_t*)&UartPdu->data[ADDR_OFFSET]);
+        gCrcBuff[ADDR_OFFSET] = UartPdu->data[ADDR_OFFSET];
+        gCrcBuff[ADDR_OFFSET+1] = UartPdu->data[ADDR_OFFSET+1];
         gTxHexFrameDataBuff[TYPE_OFFSET] = UartPdu->data[TYPE_OFFSET];
+        gCrcBuff[TYPE_OFFSET] = UartPdu->data[TYPE_OFFSET];
         for(i = DATA_OFFSET; i < UartPdu->len; i++)
           {
             gTxHexFrameDataBuff[i] = UartPdu->data[i];
-            gCrcBuff[i - DATA_OFFSET] = (uint32_t)(UartPdu->data[i]);
+            gCrcBuff[i] = (uint32_t)(UartPdu->data[i]);
           }
 
         crc = HAL_CRC_Calculate(&gCrcHandle, gCrcBuff, UartPdu->len);
