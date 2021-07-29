@@ -45,6 +45,10 @@ _Bootloader_Flash_Size = 64K; /* sector 0:3 */
 _Bootloader_SRAM_Origin = _SRAM_Origin; 
 _Bootloader_SRAM_Size = 16K;
 
+/* Application */
+_App_Flash_Start = 0x08010000;
+_App_Flash_End = 0x080FFFFF;
+
 /* Image 0 */
 _Image_0_Flash_Origin = 0x08010000;
 _Image_0_Flash_Size = 192K; /* sector 4, 5 */

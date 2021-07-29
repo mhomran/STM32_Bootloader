@@ -59,9 +59,14 @@ static PduInfo_t gTxPdu;
 static Error_t BootIf_Handler(PduInfo_t* pdu);
 static StdReturn_t BootIf_EraseSector(uint8_t Sector);
 static StdReturn_t BootIf_EraseImage(uint8_t ImgNo);
+static Error_t BootIf_Flash(PduInfo_t* pdu);
 static StdReturn_t BootIf_TransmitErrorCode(PduId_t id, Error_t err);
 static StdReturn_t BootIf_TransmitAck(PduId_t id);
 static StdReturn_t BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr);
+static uint32_t AddrSecondHalfWord;
+
+extern uint32_t _App_Flash_Start;
+extern uint32_t _App_Flash_End;
 
 void 
 BootIf_Init(void) 
@@ -77,41 +82,11 @@ BootIf_Init(void)
 static Error_t 
 BootIf_Handler(PduInfo_t* pdu)
 { 
-  static uint32_t AddrSecondHalfWord;
-  uint32_t AddrFirstHalfWord;
-  uint32_t PgAddr;
-  uint32_t DataWord;
-  uint8_t i;
-  uint8_t DataLen;
-
   switch(pdu->data[TYPE_OFFSET])
   {
     case BOOT_IF_TYPE_DATA_RECORD: 
       {
-        DataLen = pdu->len - (FRAME_HEADER_SIZE - FRAME_CRC_SIZE);
-        if(DataLen != FRAME_DATA_TO_PROGRAM_SIZE)
-          {
-            return ERR_BOOT_IF_PROGRAM_FORMAT;
-          }
-
-        AddrFirstHalfWord = (uint32_t)(*((uint16_t*)&pdu->data[ADDR_OFFSET]));
-        PgAddr = (AddrSecondHalfWord << 16) | AddrFirstHalfWord;
-        //to not cross the 128-bit row boundary causing alignment error
-        if((PgAddr % 4) != 0)
-          {
-            return ERR_BOOT_IF_PROGRAM_ADDR_ALIGN;
-          }
-
-        for(i = 0; i < FRAME_DATA_TO_PROGRAM_SIZE; i = i + 4)
-          {
-            DataWord = *((uint32_t*)&pdu->data[DATA_OFFSET + i]);
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, PgAddr + i, DataWord);
-          }
-        
-        if(E_NOT_OK == BootIf_VerifyFlashing(&(pdu->data[DATA_OFFSET]), (uint8_t*)PgAddr))
-          {
-            return ERR_BOOT_IF_DATA_IS_NOT_WRITTEN;
-          }
+        return BootIf_Flash(pdu);
       }
       break;
     case BOOT_IF_TYPE_EOF_RECORD:
@@ -300,6 +275,50 @@ BootIf_TransmitAck(PduId_t id)
   gTxPdu.data[TYPE_OFFSET] = BOOT_IF_TYPE_ACK; 
 
   return PduR_Transmit(id, &gTxPdu);
+}
+
+
+static Error_t 
+BootIf_Flash(PduInfo_t* pdu)
+{
+  uint32_t AddrFirstHalfWord;
+  uint32_t PgAddr;
+  uint32_t DataWord;
+  uint8_t i;
+  uint8_t DataLen;
+
+  DataLen = pdu->len - (FRAME_HEADER_SIZE - FRAME_CRC_SIZE);
+  if(DataLen != FRAME_DATA_TO_PROGRAM_SIZE)
+    {
+      return ERR_BOOT_IF_PROGRAM_FORMAT;
+    }
+
+  AddrFirstHalfWord = (uint32_t)(*((uint16_t*)&pdu->data[ADDR_OFFSET]));
+  PgAddr = (AddrSecondHalfWord << 16) | AddrFirstHalfWord;
+  
+  //to not cross the 128-bit row boundary causing alignment error
+  if((PgAddr % 4) != 0)
+    {
+      return ERR_BOOT_IF_PROGRAM_ADDR_ALIGN;
+    }
+  
+  if((uint32_t)&_App_Flash_End < PgAddr || PgAddr < (uint32_t)&_App_Flash_Start)
+    {
+      return ERR_BOOT_IF_ADDR_OUTBOUND;
+    }
+
+  for(i = 0; i < FRAME_DATA_TO_PROGRAM_SIZE; i = i + 4)
+    {
+      DataWord = *((uint32_t*)&pdu->data[DATA_OFFSET + i]);
+      HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, PgAddr + i, DataWord);
+    }
+  
+  if(E_NOT_OK == BootIf_VerifyFlashing(&(pdu->data[DATA_OFFSET]), (uint8_t*)PgAddr))
+    {
+      return ERR_BOOT_IF_DATA_IS_NOT_WRITTEN;
+    }
+
+  return ERR_NONE;
 }
 
 void 
