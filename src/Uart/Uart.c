@@ -233,11 +233,13 @@ UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart)
   rx_crc = *((uint32_t*)&gRxHexFrameBuff[i]);
   gen_crc = Uart_CalculateCRC(gUartIfPdu.data, gUartIfPdu.len);
 
+  /*
   if(rx_crc != gen_crc)
     {
       state = E_NOT_OK;
     }
-  
+  */
+ 
   if(huart->Instance == USART1)
     {
       if(state == E_OK)

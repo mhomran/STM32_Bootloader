@@ -38,11 +38,12 @@
 #include "PduR.h"
 #include "port.h"
 #include "error.h"
+#include "ImgHeader.h"
 
 
 typedef enum {
   BOOT_IF_TYPE_DATA_RECORD,
-  BOOT_IF_TYPE_EOF_RECORD,
+  BOOT_IF_TYPE_VERIFY_IMAGE,
   BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD,
   BOOT_IF_TYPE_LOCK_FLASH,
   BOOT_IF_TYPE_UNLOCK_FLASH,
@@ -55,10 +56,12 @@ typedef enum {
 
 static uint8_t gTxHexFrameDataBuff[FRAME_MAX_DATA_BUFF_SIZE];
 static PduInfo_t gTxPdu;
+extern CRC_HandleTypeDef gCrcHandle;
 
 static Error_t BootIf_Handler(PduInfo_t* pdu);
 static StdReturn_t BootIf_EraseSector(uint8_t Sector);
 static StdReturn_t BootIf_EraseImage(uint8_t ImgNo);
+static StdReturn_t BootIf_VerifyImage(uint8_t ImgNo);
 static Error_t BootIf_Flash(PduInfo_t* pdu);
 static StdReturn_t BootIf_TransmitErrorCode(PduId_t id, Error_t err);
 static StdReturn_t BootIf_TransmitAck(PduId_t id);
@@ -67,6 +70,16 @@ static uint32_t AddrSecondHalfWord;
 
 extern uint32_t _App_Flash_Start;
 extern uint32_t _App_Flash_End;
+
+extern uint32_t _Image_0_Flash_Size;
+extern uint32_t _Image_1_Flash_Size;
+extern uint32_t _Image_2_Flash_Size;
+extern uint32_t _Image_3_Flash_Size; 
+
+extern uint32_t _Image_0_Flash_Origin;
+extern uint32_t _Image_1_Flash_Origin;
+extern uint32_t _Image_2_Flash_Origin;
+extern uint32_t _Image_3_Flash_Origin;
 
 void 
 BootIf_Init(void) 
@@ -89,8 +102,12 @@ BootIf_Handler(PduInfo_t* pdu)
         return BootIf_Flash(pdu);
       }
       break;
-    case BOOT_IF_TYPE_EOF_RECORD:
+    case BOOT_IF_TYPE_VERIFY_IMAGE:
       {
+        if(BootIf_VerifyImage(pdu->data[DATA_OFFSET]) != E_OK)
+          {
+            return ERR_BOOT_IF_IMAGE_VERIFY;
+          }
       }
       break;
     case BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD:
@@ -243,7 +260,6 @@ static StdReturn_t
 BootIf_TransmitErrorCode(PduId_t id, Error_t err)
 {
   gTxPdu.len = FRAME_HEADER_SIZE - FRAME_CRC_SIZE;
-  gTxPdu.len += 1; //data size
   *((uint16_t*)&gTxPdu.data[ADDR_OFFSET]) = err; 
   gTxPdu.data[TYPE_OFFSET] = BOOT_IF_TYPE_ERR; 
 
@@ -295,7 +311,7 @@ BootIf_Flash(PduInfo_t* pdu)
 
   AddrFirstHalfWord = (uint32_t)(*((uint16_t*)&pdu->data[ADDR_OFFSET]));
   PgAddr = (AddrSecondHalfWord << 16) | AddrFirstHalfWord;
-  
+
   //to not cross the 128-bit row boundary causing alignment error
   if((PgAddr % 4) != 0)
     {
@@ -319,6 +335,79 @@ BootIf_Flash(PduInfo_t* pdu)
     }
 
   return ERR_NONE;
+}
+
+static StdReturn_t 
+BootIf_VerifyImage(uint8_t ImgNo)
+{
+  uint32_t image_size;
+  uint32_t image_origin;
+  ImgHeader_t* image_header;
+  uint32_t addr;
+  uint32_t crc;
+
+  switch(ImgNo) 
+  {
+    case 0:
+      {
+        image_size = (uint32_t)&_Image_0_Flash_Size;
+        image_origin = (uint32_t)& _Image_0_Flash_Origin;
+      }
+      break;
+    case 1:
+      {
+        image_size = (uint32_t)&_Image_1_Flash_Size;
+        image_origin = (uint32_t)& _Image_1_Flash_Origin;
+      }
+      break;
+    case 2:
+      {
+        image_size = (uint32_t)&_Image_2_Flash_Size;
+        image_origin = (uint32_t)& _Image_2_Flash_Origin;
+      }
+      break;
+    case 3:
+      {
+        image_size = (uint32_t)&_Image_3_Flash_Size;
+        image_origin = (uint32_t)& _Image_3_Flash_Origin;
+      }
+      break;
+    default:
+      {
+        return E_NOT_OK;
+      }
+      break;
+  }
+
+  image_header = (ImgHeader_t *)image_origin;
+
+  if((image_header->ImageEndAddr - image_header->ImageStartAddr) > image_size)
+    {
+      return E_NOT_OK;
+    }
+  
+  if(image_header->EntryPointAddr == 0xFFFFFFFF)
+    {
+      return E_NOT_OK;
+    }
+
+  __HAL_CRC_DR_RESET(&gCrcHandle);
+  addr = image_header->ImageStartAddr + sizeof(ImgHeader_t);
+  while(addr < image_header->ImageEndAddr)
+    {
+      uint8_t data = *((uint8_t*)addr);
+      uint32_t data32 = (uint32_t)data;
+      gCrcHandle.Instance->DR = data32;
+      addr += 1;
+    }
+  crc = gCrcHandle.Instance->DR;
+
+  if(crc != image_header->CRC32)
+    {
+      return E_NOT_OK;
+    }
+  
+  return E_OK;
 }
 
 void 

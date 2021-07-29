@@ -5,16 +5,16 @@ from intelhex import IntelHex
 CRC_POLYNOMIAL = 0x04C11DB7
 
 PDU_TYPES = (
-  'BOOT_IF_TYPE_DATA_RECORD',
-  'BOOT_IF_TYPE_EOF_RECORD',
-  'BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD', 
-  'BOOT_IF_TYPE_LOCK_FLASH',
-  'BOOT_IF_TYPE_UNLOCK_FLASH',
-  'BOOT_IF_TYPE_ERASE_SECTOR',
-  'BOOT_IF_TYPE_ERASE_IMAGE',
-  'BOOT_IF_TYPE_RESET',
-  'BOOT_IF_TYPE_ACK',
-  'BOOT_IF_TYPE_ERR'
+  "BOOT_IF_TYPE_DATA_RECORD",
+  "BOOT_IF_TYPE_VERIFY_IMAGE",
+  "BOOT_IF_TYPE_EXTENDED_LINEAR_ADDR_RECORD",
+  "BOOT_IF_TYPE_LOCK_FLASH",
+  "BOOT_IF_TYPE_UNLOCK_FLASH",
+  "BOOT_IF_TYPE_ERASE_SECTOR",
+  "BOOT_IF_TYPE_ERASE_IMAGE",
+  "BOOT_IF_TYPE_RESET",
+  "BOOT_IF_TYPE_ACK",
+  "BOOT_IF_TYPE_ERR"
   )   
 
 IMAGE_ADDR_RANGE = (
@@ -116,7 +116,21 @@ class Flasher:
 
         self._send_pdu(pdu_bytes)
 
+    def _verify_image(self, image_no):
+        pdu = []
+        pdu.append(DUMMY_ADDR)
+        pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_VERIFY_IMAGE'))
+        pdu.append(image_no)
+
+        pdu_bytes = struct.pack("HBB", *pdu)
+        crc = self._calculate_crc(pdu_bytes)
+        crc_bytes = struct.pack("I", crc)
+        pdu_bytes = pdu_bytes + crc_bytes
+
+        self._send_pdu(pdu_bytes)        
+
     def flash_image(self, file_name, image_no):
+        
         ih = IntelHex();
         
         if file_name == None:
@@ -186,6 +200,9 @@ class Flasher:
                 pdu_addr = pdu_addr + 16
 
         self._lock_flash()
+        
+
+        self._verify_image(image_no)
 
     def erase_image(self, image_no):
         self._unlock_flash()
@@ -195,7 +212,7 @@ class Flasher:
         pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_ERASE_IMAGE'))
         pdu.append(image_no)
 
-        pdu_bytes = struct.pack("HBH", *pdu)
+        pdu_bytes = struct.pack("HBB", *pdu)
         crc = self._calculate_crc(pdu_bytes)
         crc_bytes = struct.pack("I", crc)
         pdu_bytes = pdu_bytes + crc_bytes

@@ -1,5 +1,5 @@
 /**
- * @file img_header.h
+ * @file ImgHeader.h
  * @author Mohamed Hassanin Mohamed 
  * @brief The header of the current image.
  * @version 0.1
@@ -15,10 +15,14 @@
 #include <inttypes.h>
 
 typedef struct {
-  uint32_t ImageSize;
-  uint8_t Id;
+  uint32_t Version;
+  uint32_t ImageStartAddr;
+  uint32_t ImageEndAddr;
+  uint32_t CRC32;
   uint32_t StackPointer; 
-  uint32_t EntryPoint;
+  uint32_t EntryPointAddr;
+  uint32_t VectorTableOffset;
 } ImgHeader_t;
+
 
 #endif
