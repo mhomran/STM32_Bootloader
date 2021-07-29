@@ -29,8 +29,23 @@
 #define FRAME_MAX_SIZE (FRAME_HEADER_SIZE + FRAME_MAX_DATA_BUFF_SIZE)
 #define FRAME_CRC_SIZE 4
 #define FRAME_DATA_TO_PROGRAM_SIZE 16
-
+#define MIN_IMAGE 0
+#define MAX_IMAGE 3
+#define IMAGES_NO 4
 #define DUMMY_ADDR 0
+
+#define EEPROM_BOOT_F 0
+#define EEPROM_APP_F 1
+#define EEPROM_IMG_VERIFIED_F 1
+#define EEPROM_IMG_N_VERIFIED_F 0
+
+#define EEPROM_BOOT_OR_APP 0
+#define EEPROM_ACTIVE_IMAGE 1
+#define EEPROM_IMG_0_VERIFY 2
+#define EEPROM_IMG_1_VERIFY 3
+#define EEPROM_IMG_2_VERIFY 4
+#define EEPROM_IMG_3_VERIFY 5
+
 
 #include <stdio.h>
 #include "stm32f4xx_hal.h"
@@ -39,6 +54,7 @@
 #include "port.h"
 #include "error.h"
 #include "ImgHeader.h"
+#include "eeprom_stm32f407vg.h"
 
 
 typedef enum {
@@ -57,16 +73,14 @@ typedef enum {
 static uint8_t gTxHexFrameDataBuff[FRAME_MAX_DATA_BUFF_SIZE];
 static PduInfo_t gTxPdu;
 extern CRC_HandleTypeDef gCrcHandle;
-
-static Error_t BootIf_Handler(PduInfo_t* pdu);
-static StdReturn_t BootIf_EraseSector(uint8_t Sector);
-static StdReturn_t BootIf_EraseImage(uint8_t ImgNo);
-static StdReturn_t BootIf_VerifyImage(uint8_t ImgNo);
-static Error_t BootIf_Flash(PduInfo_t* pdu);
-static StdReturn_t BootIf_TransmitErrorCode(PduId_t id, Error_t err);
-static StdReturn_t BootIf_TransmitAck(PduId_t id);
-static StdReturn_t BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr);
 static uint32_t AddrSecondHalfWord;
+static uint8_t gEepromImageVerifyAddr[IMAGES_NO] = 
+{
+  EEPROM_IMG_0_VERIFY,
+  EEPROM_IMG_1_VERIFY,
+  EEPROM_IMG_2_VERIFY,
+  EEPROM_IMG_3_VERIFY
+};
 
 extern uint32_t _App_Flash_Start;
 extern uint32_t _App_Flash_End;
@@ -81,10 +95,31 @@ extern uint32_t _Image_1_Flash_Origin;
 extern uint32_t _Image_2_Flash_Origin;
 extern uint32_t _Image_3_Flash_Origin;
 
+static uint32_t gImageOrigins[IMAGES_NO] = 
+{
+  (uint32_t)&_Image_0_Flash_Origin,
+  (uint32_t)&_Image_1_Flash_Origin,
+  (uint32_t)&_Image_2_Flash_Origin,
+  (uint32_t)&_Image_3_Flash_Origin
+};
+
+static Error_t BootIf_Handler(PduInfo_t* pdu);
+static StdReturn_t BootIf_EraseSector(uint8_t Sector);
+static StdReturn_t BootIf_EraseImage(uint8_t ImgNo);
+static StdReturn_t BootIf_VerifyImage(uint8_t ImgNo);
+static Error_t BootIf_Flash(PduInfo_t* pdu);
+static StdReturn_t BootIf_TransmitErrorCode(PduId_t id, Error_t err);
+static StdReturn_t BootIf_TransmitAck(PduId_t id);
+static StdReturn_t BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr);
+static void BootIf_JumpToImage(uint8_t image_no);
+static void BootIf_BootManager(void);
+
 void 
 BootIf_Init(void) 
 {
   gTxPdu.data = gTxHexFrameDataBuff;
+  BootIf_JumpToImage(0);
+  //BootIf_BootManager();
 }
 
 /**
@@ -337,6 +372,40 @@ BootIf_Flash(PduInfo_t* pdu)
   return ERR_NONE;
 }
 
+static void 
+BootIf_BootManager(void)
+{
+  uint8_t BootOrByte;
+  uint8_t ActiveImage;
+
+  BootOrByte = Eeprom_ReadByte(EEPROM_BOOT_OR_APP);
+  if(BootOrByte == EEPROM_BOOT_F)
+    {
+      return;
+    }
+  else
+    {
+      ActiveImage = Eeprom_ReadByte(EEPROM_ACTIVE_IMAGE);
+      if(MIN_IMAGE <= ActiveImage && ActiveImage <= MAX_IMAGE)
+        {
+          uint32_t addr = (uint32_t)gEepromImageVerifyAddr[ActiveImage];
+          uint8_t verified = Eeprom_ReadByte(addr);
+          if(verified == EEPROM_IMG_VERIFIED_F)
+            {
+              BootIf_JumpToImage(ActiveImage);
+            }
+          else
+            {
+              return;
+            }
+        }
+      else
+        {
+          return;
+        }
+    }
+}
+
 static StdReturn_t 
 BootIf_VerifyImage(uint8_t ImgNo)
 {
@@ -408,6 +477,23 @@ BootIf_VerifyImage(uint8_t ImgNo)
     }
   
   return E_OK;
+}
+
+static void 
+BootIf_JumpToImage(uint8_t image_no)
+{
+  ImgHeader_t* ImgHeader;
+  void (*EntryPoint)(void);
+
+  ImgHeader = (ImgHeader_t*)gImageOrigins[image_no];
+
+  __disable_irq();
+  HAL_SuspendTick(); //disable systick timer
+  HAL_DeInit();
+  SCB->VTOR = ImgHeader->VectorTableOffset;
+  __set_MSP(ImgHeader->StackPointer);
+  EntryPoint = (void(*)(void))(ImgHeader->EntryPointAddr);
+  EntryPoint();
 }
 
 void 
