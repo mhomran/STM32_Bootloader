@@ -12,7 +12,8 @@ PDU_TYPES = (
   "BOOT_IF_TYPE_UNLOCK_FLASH",
   "BOOT_IF_TYPE_ERASE_SECTOR",
   "BOOT_IF_TYPE_ERASE_IMAGE",
-  "BOOT_IF_TYPE_RESET",
+  "BOOT_IF_TYPE_RESET_AND_ENTER_APP",
+  "BOOT_IF_SET_ACTIVE_IMAGE",
   "BOOT_IF_TYPE_ACK",
   "BOOT_IF_TYPE_ERR"
   )   
@@ -130,7 +131,7 @@ class Flasher:
         self._send_pdu(pdu_bytes)        
 
     def flash_image(self, file_name, image_no):
-        
+        """
         ih = IntelHex();
         
         if file_name == None:
@@ -198,9 +199,9 @@ class Flasher:
                     self._send_pdu(pdu_bytes)
                     
                 pdu_addr = pdu_addr + 16
-
-        self._lock_flash()
         
+        self._lock_flash()
+            """
 
         self._verify_image(image_no)
 
@@ -221,6 +222,30 @@ class Flasher:
 
         self._lock_flash()
 
+    def reset(self):
+        pdu = []
+        pdu.append(DUMMY_ADDR)
+        pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_RESET_AND_ENTER_APP'))
+
+        pdu_bytes = struct.pack("HB", *pdu)
+        crc = self._calculate_crc(pdu_bytes)
+        crc_bytes = struct.pack("I", crc)
+        pdu_bytes = pdu_bytes + crc_bytes
+
+        self._send_pdu(pdu_bytes)
+
+    def set_active_image(self, image_no):
+        pdu = []
+        pdu.append(DUMMY_ADDR)
+        pdu.append(PDU_TYPES.index('BOOT_IF_SET_ACTIVE_IMAGE'))
+        pdu.append(image_no)
+
+        pdu_bytes = struct.pack("HBB", *pdu)
+        crc = self._calculate_crc(pdu_bytes)
+        crc_bytes = struct.pack("I", crc)
+        pdu_bytes = pdu_bytes + crc_bytes
+
+        self._send_pdu(pdu_bytes)
 
 if __name__ == "__main__":
 
@@ -237,6 +262,10 @@ if __name__ == "__main__":
             flasher.flash_image(args.file, args.image)
         elif boot_parser.BOOT_OPTIONS_ERASE_IMAGE == action:
             flasher.erase_image(args.image)
+        elif boot_parser.BOOT_OPTIONS_RESET == action:
+            flasher.reset()
+        elif boot_parser.BOOT_OPTIONS_SET_ACTIVE_IMAGE == action:
+            flasher.set_active_image(args.image)
     except Exception as e:
         print(e)
 

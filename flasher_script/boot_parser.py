@@ -6,13 +6,15 @@ BOOT_OPTIONS = (
   'Erase image (0, 3)',
   'Flash hex file into a specific sector (4, 11)',
   'Erase sector (4, 11)',
-  'Reset controller'  
+  'Reset controller and enter application',
+  'Set active image'  
   ) 
 BOOT_OPTIONS_FLASH_IMAGE = 0
 BOOT_OPTIONS_ERASE_IMAGE = 1
 BOOT_OPTIONS_FLASH_SECTOR = 2
 BOOT_OPTIONS_ERASE_SECTOR = 3
 BOOT_OPTIONS_RESET = 4
+BOOT_OPTIONS_SET_ACTIVE_IMAGE = 5
 
 MIN_SECTION = 4
 MAX_SECTION = 11

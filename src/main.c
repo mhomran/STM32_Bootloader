@@ -9,16 +9,13 @@ main(void)
   __set_BASEPRI(TICK_INT_PRIORITY+1); 
 
   HAL_Init();
-  IWDG_Config();
   SystemClock_Config();
   
-  Uart_Init();
-  UartIf_Init();
-  PduR_Init();
   BootIf_Init();
-
-  BlueLed_Init();
-  Eeprom_Init();
+  IWDG_Config();
+  PduR_Init();
+  UartIf_Init();
+  Uart_Init();
 
   //interrupts with the same or higher priority are not masked any more
   __set_BASEPRI(0); 
@@ -89,18 +86,6 @@ void
 Error_Handler(void) 
 {
 
-}
-
-void 
-BlueLed_Init(void) 
-{
-  __GPIOD_CLK_ENABLE();
-  GPIO_InitTypeDef gpiod_struct = {0};
-  gpiod_struct.Mode = GPIO_MODE_OUTPUT_PP;
-  gpiod_struct.Pull = GPIO_NOPULL;
-  gpiod_struct.Speed = GPIO_SPEED_FREQ_LOW;
-  gpiod_struct.Pin = BLUE_LED_PIN;
-  HAL_GPIO_Init(GPIOD, &gpiod_struct);
 }
 
 void 

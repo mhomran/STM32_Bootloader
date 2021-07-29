@@ -37,7 +37,7 @@
 #define EEPROM_BOOT_F 0
 #define EEPROM_APP_F 1
 #define EEPROM_IMG_VERIFIED_F 1
-#define EEPROM_IMG_N_VERIFIED_F 0
+#define EEPROM_IMG_NOT_VERIFIED_F 0
 
 #define EEPROM_BOOT_OR_APP 0
 #define EEPROM_ACTIVE_IMAGE 1
@@ -65,7 +65,8 @@ typedef enum {
   BOOT_IF_TYPE_UNLOCK_FLASH,
   BOOT_IF_TYPE_ERASE_SECTOR,
   BOOT_IF_TYPE_ERASE_IMAGE,
-  BOOT_IF_TYPE_RESET,
+  BOOT_IF_TYPE_RESET_AND_ENTER_APP,
+  BOOT_IF_SET_ACTIVE_IMAGE,
   BOOT_IF_TYPE_ACK,
   BOOT_IF_TYPE_ERR
 } PacketType_t;
@@ -95,7 +96,7 @@ extern uint32_t _Image_1_Flash_Origin;
 extern uint32_t _Image_2_Flash_Origin;
 extern uint32_t _Image_3_Flash_Origin;
 
-static uint32_t gImageOrigins[IMAGES_NO] = 
+static uint32_t gImagesOrigin[IMAGES_NO] = 
 {
   (uint32_t)&_Image_0_Flash_Origin,
   (uint32_t)&_Image_1_Flash_Origin,
@@ -103,9 +104,18 @@ static uint32_t gImageOrigins[IMAGES_NO] =
   (uint32_t)&_Image_3_Flash_Origin
 };
 
+static uint32_t gImagesSize[IMAGES_NO] = 
+{
+  (uint32_t)&_Image_0_Flash_Size,
+  (uint32_t)&_Image_1_Flash_Size,
+  (uint32_t)&_Image_2_Flash_Size,
+  (uint32_t)&_Image_3_Flash_Size
+};
+
 static Error_t BootIf_Handler(PduInfo_t* pdu);
 static StdReturn_t BootIf_EraseSector(uint8_t Sector);
 static StdReturn_t BootIf_EraseImage(uint8_t ImgNo);
+static void BootIf_SetActiveImage(uint8_t ImgNo);
 static StdReturn_t BootIf_VerifyImage(uint8_t ImgNo);
 static Error_t BootIf_Flash(PduInfo_t* pdu);
 static StdReturn_t BootIf_TransmitErrorCode(PduId_t id, Error_t err);
@@ -113,13 +123,16 @@ static StdReturn_t BootIf_TransmitAck(PduId_t id);
 static StdReturn_t BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr);
 static void BootIf_JumpToImage(uint8_t image_no);
 static void BootIf_BootManager(void);
+static uint8_t BootIf_GetImgNo(uint32_t);
+static void BootIf_BlueLedInit(void);
 
 void 
 BootIf_Init(void) 
 {
+  Eeprom_Init();
+  BootIf_BlueLedInit();
   gTxPdu.data = gTxHexFrameDataBuff;
-  BootIf_JumpToImage(0);
-  //BootIf_BootManager();
+  BootIf_BootManager();
 }
 
 /**
@@ -178,9 +191,14 @@ BootIf_Handler(PduInfo_t* pdu)
             return ERR_BOOT_IF_IMAGE_ERASE;
           }
       }
-      break;
-    case BOOT_IF_TYPE_RESET:
+    case BOOT_IF_SET_ACTIVE_IMAGE:
       {
+        BootIf_SetActiveImage(pdu->data[DATA_OFFSET]);
+      }
+      break;
+    case BOOT_IF_TYPE_RESET_AND_ENTER_APP:
+      {
+        Eeprom_WriteByte(EEPROM_BOOT_OR_APP, EEPROM_APP_F);
         //Stop the tick, so the wdg isn't fed which leads to reset.
         HAL_SuspendTick();
       }
@@ -337,6 +355,7 @@ BootIf_Flash(PduInfo_t* pdu)
   uint32_t DataWord;
   uint8_t i;
   uint8_t DataLen;
+  uint8_t ImgNo;
 
   DataLen = pdu->len - (FRAME_HEADER_SIZE - FRAME_CRC_SIZE);
   if(DataLen != FRAME_DATA_TO_PROGRAM_SIZE)
@@ -368,6 +387,9 @@ BootIf_Flash(PduInfo_t* pdu)
     {
       return ERR_BOOT_IF_DATA_IS_NOT_WRITTEN;
     }
+
+  ImgNo = BootIf_GetImgNo(PgAddr);
+  Eeprom_WriteByte(gEepromImageVerifyAddr[ImgNo], EEPROM_IMG_NOT_VERIFIED_F);
 
   return ERR_NONE;
 }
@@ -476,6 +498,8 @@ BootIf_VerifyImage(uint8_t ImgNo)
       return E_NOT_OK;
     }
   
+  Eeprom_WriteByte(gEepromImageVerifyAddr[ImgNo], EEPROM_IMG_VERIFIED_F);
+
   return E_OK;
 }
 
@@ -485,7 +509,7 @@ BootIf_JumpToImage(uint8_t image_no)
   ImgHeader_t* ImgHeader;
   void (*EntryPoint)(void);
 
-  ImgHeader = (ImgHeader_t*)gImageOrigins[image_no];
+  ImgHeader = (ImgHeader_t*)gImagesOrigin[image_no];
 
   __disable_irq();
   HAL_SuspendTick(); //disable systick timer
@@ -494,6 +518,39 @@ BootIf_JumpToImage(uint8_t image_no)
   __set_MSP(ImgHeader->StackPointer);
   EntryPoint = (void(*)(void))(ImgHeader->EntryPointAddr);
   EntryPoint();
+}
+
+static uint8_t 
+BootIf_GetImgNo(uint32_t PgAddr)
+{
+  uint8_t ImgNo = 0;
+  for(uint8_t i = 0; i < IMAGES_NO; i++)
+    {
+      if(gImagesOrigin[i] <= PgAddr && PgAddr < (gImagesOrigin[i] + gImagesSize[i]))
+        {
+          ImgNo = i;
+          break;
+        }
+    }
+  return ImgNo;
+}
+
+static void 
+BootIf_SetActiveImage(uint8_t ImgNo)
+{
+  Eeprom_WriteByte(EEPROM_ACTIVE_IMAGE, ImgNo);
+}
+
+static void 
+BootIf_BlueLedInit(void) 
+{
+  __GPIOD_CLK_ENABLE();
+  GPIO_InitTypeDef gpiod_struct = {0};
+  gpiod_struct.Mode = GPIO_MODE_OUTPUT_PP;
+  gpiod_struct.Pull = GPIO_NOPULL;
+  gpiod_struct.Speed = GPIO_SPEED_FREQ_LOW;
+  gpiod_struct.Pin = BLUE_LED_PIN;
+  HAL_GPIO_Init(GPIOD, &gpiod_struct);
 }
 
 void 

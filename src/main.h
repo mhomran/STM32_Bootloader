@@ -18,7 +18,6 @@ extern "C" {
 
 void SystemClock_Config(void);
 void IWDG_Config(void);
-void BlueLed_Init(void);
 void Error_Handler(void);
 
 #ifdef __cplusplus
