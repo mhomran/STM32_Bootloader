@@ -33,7 +33,7 @@ A bootloader for STM32F407VG MCU. It's based on STM32CubeHAL.
 - <a href="https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm">GNU Arm Embedded Toolchain</a>
 - <a href="https://www.gnu.org/software/make/">GNU Make</a>
 
-# How to use the build the bootloader
+# How to build the bootloader
 - You should have <a href="https://www.gnu.org/software/make/">GNU Make</a> and <a href="https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm">GNU Arm Embedded Toolchain</a>
 - <code>cd</code> to the repository directory and run <code>make</code>, you should have the build folder containing the binaries.
 - Flash the image using any STM32 MCU flashers (OpenOCD, STM32Cube programmer, etc.).
