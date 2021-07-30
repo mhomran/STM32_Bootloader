@@ -1,35 +1,45 @@
 /**
- * @file serial.c
+ * @file UartIf.h
  * @author Mohamed Hassanin
- * @brief A serial communication used by the bootloader (USART at this case)
+ * @brief UART interface layer between the driver and the PDU router.
  * @version 0.1
  * @date 2021-07-23
  * 
  * @copyright Copyright (c) 2021
  * 
  */
-
-//1 len, 1 type, 2 address, 4 CRC
-#define UART_HEADER_SIZE 8
-#define UART_MAX_DATA_SIZE 255
-#define UART_MAX_TX_BUFF_SIZE (UART_HEADER_SIZE+UART_MAX_DATA_SIZE) 
-
+/******************************************************************************
+* Includes
+******************************************************************************/
 #include <stdio.h>
 #include "UartIf.h"
 #include "UartIf_Cfg.h"
 #include "Uart.h"
 #include "port.h"
-
+/******************************************************************************
+* typedefs
+******************************************************************************/
 typedef enum {
   PDU_DIR_TX,
   PDU_DIR_RX
 } PduDirection_t;
-
+/******************************************************************************
+* Module Variable Definitions
+******************************************************************************/
 const UartIfTxPduCfg_t* gpUartIfTxPduCfg;
 const UartIfRxPduCfg_t* gpUartIfRxPduCfg;
-
+/******************************************************************************
+* Functions declrations
+******************************************************************************/
 static StdReturn_t UartIf_GetUartHw(PduDirection_t dir, UartHw_t* res, PduId_t id);
+/******************************************************************************
+* Functions definitions
+******************************************************************************/
 
+/**
+ * @brief Initialize the UART interface layer
+ * 
+ */
 void 
 UartIf_Init(void)
 {  
@@ -37,6 +47,15 @@ UartIf_Init(void)
   gpUartIfRxPduCfg = UartIf_RxGetConfig();
 }
 
+
+/**
+ * @brief utility function to get the UART HW number given the PDU id
+ * 
+ * @param dir the direction of the PDU (Transmited or Received PDU)
+ * @param res the UART HW number
+ * @param id the PDU id
+ * @return StdReturn_t 
+ */
 static StdReturn_t 
 UartIf_GetUartHw(PduDirection_t dir, UartHw_t* res, PduId_t id)
 {
@@ -84,6 +103,12 @@ UartIf_Transmit(PduId_t id, PduInfo_t* Pdu)
   return Uart_Write(Uart, &UartPdu);
 }
 
+/**
+ * @brief A call back function to be called from the UART driver upon receiving a PDU
+ * 
+ * @param Uart the UART hw that received the PDU.
+ * @param Pdu The PDU received.
+ */
 void 
 UartIf_RxIndication(UartHw_t Uart, PduInfo_t* Pdu)
 {
@@ -91,8 +116,14 @@ UartIf_RxIndication(UartHw_t Uart, PduInfo_t* Pdu)
   PduR_RxIndication(id, Pdu);
 }
 
+/**
+ * @brief A call back function to be called from the UART driver upon transmitting a PDU
+ * 
+ * @param PduId The PDU id of the transmitted PDU.
+ */
 void 
 UartIf_TxConfirmation(PduId_t PduId)
 {
   PduR_TxConfirmation(PduId);
 }
+/***************************** END OF FILE ***********************************/

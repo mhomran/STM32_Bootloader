@@ -12,7 +12,9 @@
 
 #ifndef EEPROM_STM32F407VG_
 #define EEPROM_STM32F407VG_
-
+/******************************************************************************
+* Functions prototypes
+******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,3 +35,4 @@ uint32_t Eeprom_ReadWord(uint32_t Address);
 #endif
 
 #endif
+/***************************** END OF FILE ***********************************/

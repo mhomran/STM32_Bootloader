@@ -1,8 +1,22 @@
+/**
+ * @file port.h
+ * @author Mohamed Hassanin Mohamed
+ * @brief This file contains all the mapping of the used GPIO pins.
+ * @version 0.1
+ * @date 2021-07-30
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 #ifndef PORT_H
 #define PORT_H
-
+/******************************************************************************
+* includes
+******************************************************************************/
 #include <inttypes.h>
-
+/******************************************************************************
+* Definitions
+******************************************************************************/
 //Ports and pins
 #define BLUE_LED_PIN GPIO_PIN_15
 #define BLUE_LED_PORT GPIOD
@@ -15,3 +29,4 @@
 
 
 #endif
+/***************************** END OF FILE ***********************************/

@@ -1,5 +1,24 @@
+/**
+ * @file main.c
+ * @author Mohamed Hassanin Mohamed
+ * @brief A bootloader for STM32F407VG MCU
+ * @version 0.1
+ * @date 2021-07-30
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
+/******************************************************************************
+* includes
+******************************************************************************/
 #include "main.h"
 
+/**
+ * @brief The entry point for the program after the reset handler execution.
+ * 
+ * @return int 
+ */
 int 
 main(void) 
 { 
@@ -82,12 +101,20 @@ SystemClock_Config(void)
   SystemCoreClockUpdate();
 }
 
+/**
+ * @brief Error Handler in case of configuration error happened
+ * 
+ */
 void 
 Error_Handler(void) 
 {
-
+  while(1);
 }
 
+/**
+ * @brief Configure the independent watchdog timer (IWDG)
+ * 
+ */
 void 
 IWDG_Config(void) 
 {
@@ -102,5 +129,4 @@ IWDG_Config(void)
     Error_Handler();
   }
 }
-
-
+/***************************** END OF FILE ***********************************/

@@ -1,10 +1,30 @@
+/**
+ * @file stm32f4xx_it.c
+ * @author Mohamed Hassanin
+ * @brief This file contains all the used interrupt handlers
+ * @version 0.1
+ * @date 2021-07-30
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+/******************************************************************************
+* Includes
+******************************************************************************/
 #include "main.h"
-
+/******************************************************************************
+* Variable declarations
+******************************************************************************/
 extern UART_HandleTypeDef gUart1Handle;
 extern DMA_HandleTypeDef gDma2Usart1TxHandle;
 extern DMA_HandleTypeDef gDma2Usart1RxHandle;
+/******************************************************************************
+* Functions prototypes
+******************************************************************************/
 void UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart);
-
+/******************************************************************************
+* Functions defintions
+******************************************************************************/
 /**
   * @brief This function handles System tick timer.
   */
@@ -59,3 +79,4 @@ void DMA2_Stream2_IRQHandler(void)
 {
   HAL_DMA_IRQHandler(&gDma2Usart1RxHandle);
 }
+/***************************** END OF FILE ***********************************/

@@ -1,5 +1,5 @@
 /**
- * @file uart_if.h
+ * @file UartIf.h
  * @author Mohamed Hassanin
  * @brief UART interface layer between the driver and the PDU router.
  * @version 0.1
@@ -10,12 +10,16 @@
  */
 #ifndef UART_IF_H
 #define UART_IF_H
-
+/******************************************************************************
+* Includes
+******************************************************************************/
 #include <inttypes.h>
 #include "UartIf.h"
 #include "Uart.h"
 #include "PduR.h"
-
+/******************************************************************************
+* Function Prototypes
+******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,3 +34,4 @@ void UartIf_TxConfirmation(PduId_t);
 #endif
 
 #endif
+/***************************** END OF FILE ***********************************/

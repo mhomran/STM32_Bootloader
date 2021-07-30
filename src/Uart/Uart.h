@@ -13,10 +13,15 @@
 #ifndef UART_H
 #define UART_H
 
+/******************************************************************************
+* Includes
+******************************************************************************/
 #include <inttypes.h>
 #include "Std_Types.h"
 #include "PduR.h"
-
+/******************************************************************************
+* delarations
+******************************************************************************/
 typedef struct {
   uint8_t len;
   uint8_t* data;
@@ -28,10 +33,12 @@ typedef enum {
   UART_HW_MAX
 } UartHw_t;
 
+/******************************************************************************
+* Function Prototypes
+******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 void Uart_Init(void);
 StdReturn_t Uart_Write(UartHw_t, UartPdu_t*);
 
@@ -40,3 +47,4 @@ StdReturn_t Uart_Write(UartHw_t, UartPdu_t*);
 #endif
 
 #endif
+/***************************** END OF FILE ***********************************/

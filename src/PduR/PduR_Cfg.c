@@ -8,8 +8,13 @@
  * @copyright Copyright (c) 2021
  * 
  */
+/******************************************************************************
+* includes
+******************************************************************************/
 #include "PduR_Cfg.h"
-
+/******************************************************************************
+* Module Variable Definitions
+******************************************************************************/
 static PduRCfg_t gpTxPduRCfg[PDUS_TX_NO] = {
   {
     PDU_TX_ID_BOOT_UART,
@@ -23,15 +28,29 @@ static PduRCfg_t gpRxPduRCfg[PDUS_RX_NO] = {
     PDU_MODULE_IF_UART
   }
 };
+/******************************************************************************
+* Functions definitions
+******************************************************************************/
 
+/**
+ * @brief A getter for the configuration array
+ * 
+ * @return const PduRCfg_t* 
+ */
 const PduRCfg_t* 
 PduR_TxGetConfig(void)
 {
   return gpTxPduRCfg;
 }
 
+/**
+ * @brief A getter for the configuration array
+ * 
+ * @return const PduRCfg_t* 
+ */
 const PduRCfg_t* 
 PduR_RxGetConfig(void)
 {
   return gpRxPduRCfg;
 }
+/***************************** END OF FILE ***********************************/

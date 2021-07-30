@@ -11,14 +11,20 @@
 
 #ifndef PDU_R_H
 #define PDU_R_H
-
+/******************************************************************************
+* Includes
+******************************************************************************/
+#include <inttypes.h>
+#include "Std_Types.h"
+/******************************************************************************
+* Defines
+******************************************************************************/
 #define PDU_TYPE_DATA_RECORD                          ((PDUType_t)0)
 #define PDU_TYPE_EOF_RECORD                           ((PDUType_t)1)
 #define PDU_TYPE_EXTENDED_LINEAR_ADDR_RECORD          ((PDUType_t)4)
-
-#include <inttypes.h>
-#include "Std_Types.h"
-
+/******************************************************************************
+* Typedefs
+******************************************************************************/
 typedef enum {
   PDU_TYPE_START = 5,
   PDU_TYPE_LOCK_FLASH,
@@ -48,7 +54,9 @@ typedef struct {
 } PduInfo_t;
 
 typedef uint32_t PduId_t;
-
+/******************************************************************************
+* Function Prototypes
+******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -63,3 +71,4 @@ void PduR_TxConfirmation(PduId_t);
 #endif
 
 #endif
+/***************************** END OF FILE ***********************************/

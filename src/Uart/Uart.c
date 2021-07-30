@@ -9,6 +9,18 @@
  * @copyright Copyright (c) 2021
  * 
  */
+/******************************************************************************
+* Includes
+******************************************************************************/
+#include "stm32f4xx_hal.h"
+#include "Uart.h"
+#include "UartIf.h"
+#include "UartIf_Cfg.h"
+#include "port.h"
+#include "PduR_Cfg.h"
+/******************************************************************************
+* Definitions
+******************************************************************************/
 #define UART_HW_NO 1
 
 #define FRAME_HEADER_SIZE 7 //2 addr, 1 type, 4 CRC
@@ -19,14 +31,9 @@
 #define ADDR_OFFSET 0
 #define TYPE_OFFSET 2
 #define DATA_OFFSET 3
-
-#include "stm32f4xx_hal.h"
-#include "Uart.h"
-#include "UartIf.h"
-#include "UartIf_Cfg.h"
-#include "port.h"
-#include "PduR_Cfg.h"
-
+/******************************************************************************
+* typedefs
+******************************************************************************/
 typedef struct {
   uint8_t len;
   uint16_t addr;
@@ -43,7 +50,9 @@ typedef enum
   STATE_DATA,
   STATE_CRC
 }HexState_t;
-
+/******************************************************************************
+* Module Variable Definitions
+******************************************************************************/
 UART_HandleTypeDef gUart1Handle;
 DMA_HandleTypeDef gDma2Usart1TxHandle;
 DMA_HandleTypeDef gDma2Usart1RxHandle;
@@ -62,6 +71,16 @@ static uint8_t gUartHwTxPduId[UART_HW_NO];
 
 static uint32_t Uart_CalculateCRC(uint8_t*, uint8_t);
 
+/******************************************************************************
+* Functions definitions
+******************************************************************************/
+
+/**
+  * @brief  UART MSP Init.
+  * @param  huart  Pointer to a UART_HandleTypeDef structure that contains
+  *                the configuration information for the specified UART module.
+  * @retval None
+  */
 void 
 HAL_UART_MspInit(UART_HandleTypeDef *hsart)
 {
@@ -123,6 +142,11 @@ HAL_UART_MspInit(UART_HandleTypeDef *hsart)
     }
 }
 
+
+/**
+ * @brief Initialize the Uart driver
+ * 
+ */
 void 
 Uart_Init(void)
 {
@@ -152,6 +176,13 @@ Uart_Init(void)
   gUartIfPdu.data = gUartIfPduDataBuff;
 }
 
+/**
+ * @brief Write PDU to a specific UART controller to be transmitted.
+ * 
+ * @param Uart The UART peripheral number (1, 2, etc.)
+ * @param UartPdu The pdu to send
+ * @return StdReturn_t 
+ */
 StdReturn_t 
 Uart_Write(UartHw_t Uart, UartPdu_t* UartPdu)
 {
@@ -209,6 +240,11 @@ HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     }
 }
 
+/**
+ * @brief Handler for the idle line of a specific UART peripheral
+ * 
+ * @param huart UART peripheral handle
+ */
 void 
 UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart)
 {
@@ -233,12 +269,12 @@ UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart)
   rx_crc = *((uint32_t*)&gRxHexFrameBuff[i]);
   gen_crc = Uart_CalculateCRC(gUartIfPdu.data, gUartIfPdu.len);
 
-  /*
+  
   if(rx_crc != gen_crc)
     {
       state = E_NOT_OK;
     }
-  */
+  
  
   if(huart->Instance == USART1)
     {
@@ -253,6 +289,13 @@ UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart)
     }
 }
 
+/**
+ * @brief Calculate the CRC of a given bytes.
+ * 
+ * @param pData The buffer that contains the bytes
+ * @param Size the size of buffer
+ * @return uint32_t CRC
+ */
 static uint32_t 
 Uart_CalculateCRC(uint8_t* pData, uint8_t Size)
 {
@@ -262,3 +305,4 @@ Uart_CalculateCRC(uint8_t* pData, uint8_t Size)
     }
   return HAL_CRC_Calculate(&gCrcHandle, gCrcBuff, Size);
 }
+/***************************** END OF FILE ***********************************/

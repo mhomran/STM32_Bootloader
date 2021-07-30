@@ -10,6 +10,9 @@
  * @copyright Copyright (c) 2021
  * 
  */
+/******************************************************************************
+* Includes
+******************************************************************************/
 #include <stdio.h>
 #include "PduR.h"
 #include "PduR_Cfg.h"
@@ -17,18 +20,29 @@
 #include "error.h"
 #include "UartIf.h"
 #include "BootIf.h"
-
+/******************************************************************************
+* typedefs
+******************************************************************************/
 typedef enum {
   PDU_DIR_TX,
   PDU_DIR_RX
 } PduDirection_t;
 
-
+/******************************************************************************
+* Module Variable Definitions
+******************************************************************************/
 const PduRCfg_t* gpTxPduCfg;
 const PduRCfg_t* gpRxPduCfg;
 
 static StdReturn_t PduR_GetModuleIf(PduDirection_t dir, PduModuleIf_t* res, PduId_t id);
+/******************************************************************************
+* Functions definitions
+******************************************************************************/
 
+/**
+ * @brief Initialize the PDU router layer.
+ * 
+ */
 void 
 PduR_Init(void)
 {
@@ -36,6 +50,15 @@ PduR_Init(void)
   gpRxPduCfg = PduR_RxGetConfig();
 }
 
+/**
+ * @brief Get the correct module (UART, CAN, etc.) based on the PDU id
+ * and the direction of the message (transmitted or received).
+ * 
+ * @param dir the direction of the message.
+ * @param res The Module 
+ * @param id The PDU ID
+ * @return StdReturn_t 
+ */
 static StdReturn_t 
 PduR_GetModuleIf(PduDirection_t dir, PduModuleIf_t* res, PduId_t id)
 {
@@ -68,6 +91,14 @@ PduR_GetModuleIf(PduDirection_t dir, PduModuleIf_t* res, PduId_t id)
   return state;
 }
 
+
+/**
+ * @brief Transmit a PDU given its ID and info.
+ * 
+ * @param id The PDU id
+ * @param pdu The PDU info
+ * @return StdReturn_t 
+ */
 StdReturn_t 
 PduR_Transmit(PduId_t id, PduInfo_t* pdu)
 {
@@ -98,6 +129,14 @@ PduR_Transmit(PduId_t id, PduInfo_t* pdu)
   return state;
 }
 
+
+/**
+ * @brief A call back function to be called from the UART interface layer
+ *  upon receiving a PDU
+ * 
+ * @param id the PDU ID of the received the PDU.
+ * @param pdu The PDU received.
+ */
 void 
 PduR_RxIndication(PduId_t id, PduInfo_t* pdu)
 {
@@ -114,6 +153,12 @@ PduR_RxIndication(PduId_t id, PduInfo_t* pdu)
   }
 }
 
+/**
+ * @brief A call back function to be called from the UART interface layer
+ *  upon transmitting a PDU
+ * 
+ * @param id the PDU ID of the transmitted the PDU.
+ */
 void 
 PduR_TxConfirmation(PduId_t id)
 {
@@ -129,4 +174,4 @@ PduR_TxConfirmation(PduId_t id)
     break;
   }
 }
-
+/***************************** END OF FILE ***********************************/

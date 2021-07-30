@@ -1,14 +1,27 @@
 /**
- * @file boot.h
+ * @file BootIf.c
  * @author Mohamed Hassanin
- * @brief This module decides which action to perform on the received packet.
+ * @brief This module performs the bootloader actions based on the received packet.
  * @version 0.1
  * @date 2021-07-24
  * 
  * @copyright Copyright (c) 2021
  * 
  */
-
+/******************************************************************************
+* Includes
+******************************************************************************/
+#include <stdio.h>
+#include "stm32f4xx_hal.h"
+#include "BootIf.h"
+#include "PduR.h"
+#include "port.h"
+#include "error.h"
+#include "ImgHeader.h"
+#include "eeprom_stm32f407vg.h"
+/******************************************************************************
+* Definitions
+******************************************************************************/
 #define BOOT_IF_MIN_APP_SECTOR 4
 #define BOOT_IF_MAX_APP_SECTOR 11
 
@@ -46,17 +59,9 @@
 #define EEPROM_IMG_2_VERIFY 4
 #define EEPROM_IMG_3_VERIFY 5
 
-
-#include <stdio.h>
-#include "stm32f4xx_hal.h"
-#include "BootIf.h"
-#include "PduR.h"
-#include "port.h"
-#include "error.h"
-#include "ImgHeader.h"
-#include "eeprom_stm32f407vg.h"
-
-
+/******************************************************************************
+* Typedefs
+******************************************************************************/
 typedef enum {
   BOOT_IF_TYPE_DATA_RECORD,
   BOOT_IF_TYPE_VERIFY_IMAGE,
@@ -70,7 +75,9 @@ typedef enum {
   BOOT_IF_TYPE_ACK,
   BOOT_IF_TYPE_ERR
 } PacketType_t;
-
+/******************************************************************************
+* Module Variable Definitions
+******************************************************************************/
 static uint8_t gTxHexFrameDataBuff[FRAME_MAX_DATA_BUFF_SIZE];
 static PduInfo_t gTxPdu;
 extern CRC_HandleTypeDef gCrcHandle;
@@ -111,7 +118,9 @@ static uint32_t gImagesSize[IMAGES_NO] =
   (uint32_t)&_Image_2_Flash_Size,
   (uint32_t)&_Image_3_Flash_Size
 };
-
+/******************************************************************************
+* Functions prototypes
+******************************************************************************/
 static Error_t BootIf_Handler(PduInfo_t* pdu);
 static StdReturn_t BootIf_EraseSector(uint8_t Sector);
 static StdReturn_t BootIf_EraseImage(uint8_t ImgNo);
@@ -125,7 +134,14 @@ static void BootIf_JumpToImage(uint8_t image_no);
 static void BootIf_BootManager(void);
 static uint8_t BootIf_GetImgNo(uint32_t);
 static void BootIf_BlueLedInit(void);
+/******************************************************************************
+* Functions definitions
+******************************************************************************/
 
+/**
+ * @brief Initialize the bootloader and call the bootmanager function.
+ * 
+ */
 void 
 BootIf_Init(void) 
 {
@@ -214,7 +230,12 @@ BootIf_Handler(PduInfo_t* pdu)
   return ERR_NONE;
 }
 
-
+/**
+ * @brief Utility function to erase a specific sector in flash
+ * 
+ * @param Sector 
+ * @return StdReturn_t 
+ */
 static StdReturn_t 
 BootIf_EraseSector(uint8_t Sector)
 {
@@ -245,6 +266,12 @@ BootIf_EraseSector(uint8_t Sector)
     }
 }
 
+/**
+ * @brief Utility function to erase a specific images in flash
+ * 
+ * @param Sector 
+ * @return StdReturn_t 
+ */
 static StdReturn_t 
 BootIf_EraseImage(uint8_t ImgNo)
 {
@@ -297,6 +324,12 @@ BootIf_EraseImage(uint8_t ImgNo)
   return HAL_OK;
 }
 
+/**
+ * @brief A call back function to be called from the PDU router upon receiving a PDU
+ * 
+ * @param id The PDU ID of the PDU received.
+ * @param pdu The PDU received
+ */
 void 
 BootIf_RxIndication(PduId_t id, PduInfo_t* pdu)
 {
@@ -309,6 +342,13 @@ BootIf_RxIndication(PduId_t id, PduInfo_t* pdu)
   BootIf_TransmitAck(id);
 }
 
+/**
+ * @brief Transmit an error code 
+ * 
+ * @param id The PDU ID
+ * @param err The error code
+ * @return StdReturn_t 
+ */
 static StdReturn_t 
 BootIf_TransmitErrorCode(PduId_t id, Error_t err)
 {
@@ -319,6 +359,13 @@ BootIf_TransmitErrorCode(PduId_t id, Error_t err)
   return PduR_Transmit(id, &gTxPdu);
 }
 
+/**
+ * @brief Verify the flashing of the record
+ * 
+ * @param data The buffer of the record
+ * @param start_addr The start address of the flashed record.
+ * @return StdReturn_t 
+ */
 static StdReturn_t 
 BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr)
 {
@@ -336,6 +383,12 @@ BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr)
   return E_OK;
 }
 
+/**
+ * @brief Transmit Ack PDU 
+ * 
+ * @param id PDU ID
+ * @return StdReturn_t 
+ */
 static StdReturn_t 
 BootIf_TransmitAck(PduId_t id)
 {
@@ -346,7 +399,12 @@ BootIf_TransmitAck(PduId_t id)
   return PduR_Transmit(id, &gTxPdu);
 }
 
-
+/**
+ * @brief Flash a specific data record.
+ * 
+ * @param pdu The PDU containing the record
+ * @return Error_t An error code in case of a failed operation.
+ */
 static Error_t 
 BootIf_Flash(PduInfo_t* pdu)
 {
@@ -394,6 +452,11 @@ BootIf_Flash(PduInfo_t* pdu)
   return ERR_NONE;
 }
 
+/**
+ * @brief The bootmanager is responible for determining the enterance
+ * of either the bootloader or the application.
+ * 
+ */
 static void 
 BootIf_BootManager(void)
 {
@@ -428,6 +491,13 @@ BootIf_BootManager(void)
     }
 }
 
+/**
+ * @brief Verify a specific image. It if the entry point of the image is valid.
+ * It checks the CRC of the image. 
+ *
+ * @param ImgNo The image number
+ * @return StdReturn_t 
+ */
 static StdReturn_t 
 BootIf_VerifyImage(uint8_t ImgNo)
 {
@@ -503,6 +573,11 @@ BootIf_VerifyImage(uint8_t ImgNo)
   return E_OK;
 }
 
+/**
+ * @brief Enter a specific image after doing the necessary deinitializtions.
+ * 
+ * @param image_no The image number
+ */
 static void 
 BootIf_JumpToImage(uint8_t image_no)
 {
@@ -520,6 +595,12 @@ BootIf_JumpToImage(uint8_t image_no)
   EntryPoint();
 }
 
+/**
+ * @brief Getter for image number of the image that contains a specific address.
+ * 
+ * @param PgAddr The address to check
+ * @return uint8_t 
+ */
 static uint8_t 
 BootIf_GetImgNo(uint32_t PgAddr)
 {
@@ -535,12 +616,22 @@ BootIf_GetImgNo(uint32_t PgAddr)
   return ImgNo;
 }
 
+/**
+ * @brief Set an image as an active image in the EEPROM.
+ * 
+ * @param ImgNo The image number
+ */
 static void 
 BootIf_SetActiveImage(uint8_t ImgNo)
 {
   Eeprom_WriteByte(EEPROM_ACTIVE_IMAGE, ImgNo);
 }
 
+/**
+ * @brief Initialize a blue led to indicate the operation of the 
+ * bootloader.
+ * 
+ */
 static void 
 BootIf_BlueLedInit(void) 
 {
@@ -553,8 +644,14 @@ BootIf_BlueLedInit(void)
   HAL_GPIO_Init(GPIOD, &gpiod_struct);
 }
 
+/**
+ * @brief A call back function to be called from the PDU router upon transmitting a PDU
+ * 
+ * @param id The PDU ID of the PDU transmitted.
+ */
 void 
 BootIf_TxConfirmation(PduId_t id) 
 {
-  
+  //DO NOTHING
 }
+/***************************** END OF FILE ***********************************/

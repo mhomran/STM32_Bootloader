@@ -1,7 +1,7 @@
 /**
- * @file boot.h
+ * @file BootIf.h
  * @author Mohamed Hassanin
- * @brief This module decides which action to perform on the received packet.
+ * @brief This module performs the bootloader actions based on the received packet.
  * @version 0.1
  * @date 2021-07-24
  * 
@@ -10,9 +10,13 @@
  */
 #ifndef BOOT_H_
 #define BOOT_H_
-
+/******************************************************************************
+* Includes
+******************************************************************************/
 #include "PduR.h"
-
+/******************************************************************************
+* Function Prototypes
+******************************************************************************/
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -26,3 +30,4 @@ void BootIf_TxConfirmation(PduId_t id);
 #endif
 
 #endif
+/***************************** END OF FILE ***********************************/

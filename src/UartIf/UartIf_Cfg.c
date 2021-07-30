@@ -8,11 +8,15 @@
  * @copyright Copyright (c) 2021
  * 
  */
-
+/******************************************************************************
+* Includes
+******************************************************************************/
 #include "UartIf_Cfg.h"
 #include "UartIf.h"
 #include "PduR_Cfg.h"
-
+/******************************************************************************
+* Module Variable Definitions
+******************************************************************************/
 static UartIfTxPduCfg_t gpTxUartIfPduRCfg[UART_PDUS_TX_NO] = {
   {
     PDU_TX_ID_BOOT_UART,
@@ -23,15 +27,29 @@ static UartIfTxPduCfg_t gpTxUartIfPduRCfg[UART_PDUS_TX_NO] = {
 static UartIfRxPduCfg_t gpRxUartIfPduRCfg[UART_PDUS_RX_NO] = {
   PDU_RX_ID_BOOT_UART
 };
+/******************************************************************************
+* Functions definitions
+******************************************************************************/
 
+/**
+ * @brief Getter for the configuration array.
+ * 
+ * @return const UartIfTxPduCfg_t* 
+ */
 const UartIfTxPduCfg_t* 
 UartIf_TxGetConfig(void)
 {
   return gpTxUartIfPduRCfg;
 }
 
+/**
+ * @brief Getter for the configuration array.
+ * 
+ * @return const UartIfTxPduCfg_t* 
+ */
 const UartIfRxPduCfg_t* 
 UartIf_RxGetConfig(void)
 {
   return gpRxUartIfPduRCfg;
 }
+/***************************** END OF FILE ***********************************/
