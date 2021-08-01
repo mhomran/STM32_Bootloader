@@ -76,3 +76,10 @@ A bootloader for STM32F407VG MCU. It's based on STM32CubeHAL.
 - CAN communication.
 - Transport layer ISO-TP (ISO 15765-2)
 - Delta file
+
+# References
+# English
+- <a href="https://www.beningo.com/insights/white-papers/bootloader-design-for-microcontrollers-in-embedded-systems/">Bootloader Design for Microcontrollers in Embedded Systems</a> White paper
+## Arabic
+- <a href="https://www.youtube.com/playlist?list=PLl3yF2kjT6AzLxhOuCEBY-8RzOIB1sfnN">Embedded Boot-Loader Design Course</a> YouTube playlist
+- <a href="https://www.youtube.com/playlist?list=PLPFp2zIiTnxV5e75pGKIccaR0BjmpIS79">Flash Memory and Bootloaders</a> YouTube playlist
