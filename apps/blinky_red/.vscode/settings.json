@@ -17,6 +17,7 @@
     "bootif.h": "c",
     "imgheader.h": "c",
     "eeprom_stm32f407vg.h": "c",
-    "error.h": "c"
+    "error.h": "c",
+    "sharedhal.h": "c"
   }
 }

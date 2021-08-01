@@ -11,7 +11,7 @@
       "program": "${file}",
       "console": "integratedTerminal",
       "args": [
-        "COM8",
+        "COM1",
         "-f",
         "output.hex",
         "-a0",

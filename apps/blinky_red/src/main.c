@@ -1,18 +1,9 @@
-/**
- * @file main.c
- * @author Mohamed Hassanin Mohamed
- * @brief A bootloader for STM32F407VG MCU
- * @version 0.1
- * @date 2021-07-30
- * 
- * @copyright Copyright (c) 2021
- * 
- */
-
 /******************************************************************************
 * includes
 ******************************************************************************/
 #include "main.h"
+
+extern const CubeHal_t* const pHal;
 
 /**
  * @brief The entry point for the program after the reset handler execution.
@@ -22,30 +13,15 @@
 int 
 main(void) 
 { 
-  BootIf_BootManager_Init();
-  BootIf_BootManager();
-
-  // For systick timer that's used for timeout by CubeHAL
   __enable_irq();
-  //interrupts with priority value less than TICK_INT_PRIORITY are masked
-  __set_BASEPRI(TICK_INT_PRIORITY); 
-
-  HAL_Init();
+  pHal->HAL_Init();
   SystemClock_Config();
-  
-  BootIf_Init();
-  IWDG_Config();
-  PduR_Init();
-  UartIf_Init();
-  Uart_Init();
-
-  //no exceptions or interrupts are masked
-  __set_BASEPRI(0); 
+  RedLedInit();
 
   while (1) 
     {
-      HAL_GPIO_TogglePin(GPIOD, BLUE_LED_PIN);
-      HAL_Delay(500);
+      pHal->HAL_GPIO_TogglePin(GPIOD, RED_LED_PIN);
+      pHal->HAL_Delay(500);
     }
 }
 
@@ -77,10 +53,9 @@ SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLN = 168;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  
+  pHal->HAL_RCC_OscConfig(&RCC_OscInitStruct);
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -90,13 +65,13 @@ SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  if (pHal->HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
     Error_Handler();
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
+  if (pHal->HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
@@ -115,21 +90,18 @@ Error_Handler(void)
 }
 
 /**
- * @brief Configure the independent watchdog timer (IWDG)
+ * @brief Initialize a blinky red led 
  * 
  */
 void 
-IWDG_Config(void) 
+RedLedInit(void) 
 {
-  IWDG_HandleTypeDef iwdg_handle = {0};
-
-  iwdg_handle.Instance = IWDG;
-  iwdg_handle.Init.Prescaler = IWDG_PRESCALER_32;
-  iwdg_handle.Init.Reload = IWDG_4_S; 
-  
-  if(HAL_IWDG_Init(&iwdg_handle) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  __GPIOD_CLK_ENABLE();
+  GPIO_InitTypeDef gpiod_struct = {0};
+  gpiod_struct.Mode = GPIO_MODE_OUTPUT_PP;
+  gpiod_struct.Pull = GPIO_NOPULL;
+  gpiod_struct.Speed = GPIO_SPEED_FREQ_LOW;
+  gpiod_struct.Pin = RED_LED_PIN;
+  pHal->HAL_GPIO_Init(GPIOD, &gpiod_struct);
 }
 /***************************** END OF FILE ***********************************/

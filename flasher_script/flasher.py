@@ -131,7 +131,7 @@ class Flasher:
         self._send_pdu(pdu_bytes)        
 
     def flash_image(self, file_name, image_no):
-        """
+        
         ih = IntelHex();
         
         if file_name == None:
@@ -201,7 +201,7 @@ class Flasher:
                 pdu_addr = pdu_addr + 16
         
         self._lock_flash()
-            """
+            
 
         self._verify_image(image_no)
 

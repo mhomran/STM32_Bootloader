@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\arm-none-eabi\\include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "STM32F407xx"
+            ],
+            "compilerPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin\\arm-none-eabi-gcc.exe",
+            "cStandard": "gnu99",
+            "intelliSenseMode": "gcc-arm"
+        }
+    ],
+    "version": 4
+}

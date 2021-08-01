@@ -25,6 +25,9 @@ void BootIf_Init(void);
 void BootIf_RxIndication(PduId_t id, PduInfo_t* pdu);
 void BootIf_TxConfirmation(PduId_t id);
 
+void BootIf_BootManager_Init(void);
+void BootIf_BootManager(void);
+
 #ifdef __cplusplus
 }
 #endif

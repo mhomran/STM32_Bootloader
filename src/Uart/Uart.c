@@ -133,11 +133,11 @@ HAL_UART_MspInit(UART_HandleTypeDef *hsart)
       __HAL_LINKDMA(&gUart1Handle,hdmarx,gDma2Usart1RxHandle);
 
       /* USART1 interrupt Init */
-      HAL_NVIC_SetPriority(USART1_IRQn, TICK_INT_PRIORITY+1, 0);
+      HAL_NVIC_SetPriority(USART1_IRQn, TICK_INT_PRIORITY-1, 0);
       HAL_NVIC_EnableIRQ(USART1_IRQn);
-      HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, TICK_INT_PRIORITY+2, 0);
+      HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, TICK_INT_PRIORITY-2, 0);
       HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
-      HAL_NVIC_SetPriority(DMA2_Stream2_IRQn, TICK_INT_PRIORITY+3, 0);
+      HAL_NVIC_SetPriority(DMA2_Stream2_IRQn, TICK_INT_PRIORITY-3, 0);
       HAL_NVIC_EnableIRQ(DMA2_Stream2_IRQn);
     }
 }
@@ -158,6 +158,8 @@ Uart_Init(void)
   gUart1Handle.Init.Parity = UART_PARITY_NONE;
   gUart1Handle.Init.Mode = UART_MODE_TX_RX;
 
+  //callbacks
+  
   if (HAL_UART_Init(&gUart1Handle) != HAL_OK)
     {
     }
@@ -226,13 +228,33 @@ Uart_Write(UartHw_t Uart, UartPdu_t* UartPdu)
 }
 
 /**
+ * @brief Calculate the CRC of a given bytes.
+ * 
+ * @param pData The buffer that contains the bytes
+ * @param Size the size of buffer
+ * @return uint32_t CRC
+ */
+static uint32_t 
+Uart_CalculateCRC(uint8_t* pData, uint8_t Size)
+{
+  for(uint8_t i = 0; i < Size; i++)
+    {
+      gCrcBuff[i] = (uint32_t)pData[i];
+    }
+  return HAL_CRC_Calculate(&gCrcHandle, gCrcBuff, Size);
+}
+
+/******************************************************************************
+* Callbacks
+******************************************************************************/
+/**
   * @brief  Tx Transfer completed callbacks.
   * @param  huart  Pointer to a UART_HandleTypeDef structure that contains
   *                the configuration information for the specified UART module.
   * @retval None
   */
 void 
-HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+Uart_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   if(huart->Instance == USART1)
     {
@@ -246,7 +268,7 @@ HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
  * @param huart UART peripheral handle
  */
 void 
-UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart)
+Uart_IDLE_IRQHandler(UART_HandleTypeDef *huart)
 {
   uint8_t len;
   uint8_t i;
@@ -287,22 +309,5 @@ UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart)
           state = E_NOT_OK;
         }
     }
-}
-
-/**
- * @brief Calculate the CRC of a given bytes.
- * 
- * @param pData The buffer that contains the bytes
- * @param Size the size of buffer
- * @return uint32_t CRC
- */
-static uint32_t 
-Uart_CalculateCRC(uint8_t* pData, uint8_t Size)
-{
-  for(uint8_t i = 0; i < Size; i++)
-    {
-      gCrcBuff[i] = (uint32_t)pData[i];
-    }
-  return HAL_CRC_Calculate(&gCrcHandle, gCrcBuff, Size);
 }
 /***************************** END OF FILE ***********************************/

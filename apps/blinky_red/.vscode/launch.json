@@ -15,9 +15,7 @@
       ],
       "svdFile": "./STM32F40x.svd",
       "preRestartCommands": [
-        "monitor reset halt",
-        "add-symbol-file apps/blinky_red/build/output.elf",
-        "y"
+        "monitor reset halt"
       ],
       "postLaunchCommands": [
         "monitor reset halt"

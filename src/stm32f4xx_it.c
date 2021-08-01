@@ -21,7 +21,7 @@ extern DMA_HandleTypeDef gDma2Usart1RxHandle;
 /******************************************************************************
 * Functions prototypes
 ******************************************************************************/
-void UART1_IDLE_IRQHandler(UART_HandleTypeDef *huart);
+void Uart_IDLE_IRQHandler(UART_HandleTypeDef *huart);
 /******************************************************************************
 * Functions defintions
 ******************************************************************************/
@@ -56,7 +56,7 @@ USART1_IRQHandler(void)
     {
       __HAL_UART_CLEAR_FLAG(&gUart1Handle, UART_FLAG_IDLE);
       HAL_UART_AbortReceive(&gUart1Handle);
-      UART1_IDLE_IRQHandler(&gUart1Handle);
+      Uart_IDLE_IRQHandler(&gUart1Handle);
     }
   
   //clears the TX and RX flags

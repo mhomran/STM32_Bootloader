@@ -131,7 +131,6 @@ static StdReturn_t BootIf_TransmitErrorCode(PduId_t id, Error_t err);
 static StdReturn_t BootIf_TransmitAck(PduId_t id);
 static StdReturn_t BootIf_VerifyFlashing(uint8_t* data, uint8_t* start_addr);
 static void BootIf_JumpToImage(uint8_t image_no);
-static void BootIf_BootManager(void);
 static uint8_t BootIf_GetImgNo(uint32_t);
 static void BootIf_BlueLedInit(void);
 /******************************************************************************
@@ -145,10 +144,18 @@ static void BootIf_BlueLedInit(void);
 void 
 BootIf_Init(void) 
 {
-  Eeprom_Init();
   BootIf_BlueLedInit();
   gTxPdu.data = gTxHexFrameDataBuff;
-  BootIf_BootManager();
+}
+
+/**
+ * @brief Initialize the boot manager.
+ * 
+ */
+void 
+BootIf_BootManager_Init(void) 
+{
+  Eeprom_Init();
 }
 
 /**
@@ -457,7 +464,7 @@ BootIf_Flash(PduInfo_t* pdu)
  * of either the bootloader or the application.
  * 
  */
-static void 
+void 
 BootIf_BootManager(void)
 {
   uint8_t BootOrByte;
@@ -552,6 +559,12 @@ BootIf_VerifyImage(uint8_t ImgNo)
       return E_NOT_OK;
     }
 
+  //vector table alignment
+  if(image_header->VectorTableAddr & 0x1FF)
+    {
+      return E_NOT_OK;
+    }
+
   __HAL_CRC_DR_RESET(&gCrcHandle);
   addr = image_header->ImageStartAddr + sizeof(ImgHeader_t);
   while(addr < image_header->ImageEndAddr)
@@ -583,14 +596,16 @@ BootIf_JumpToImage(uint8_t image_no)
 {
   ImgHeader_t* ImgHeader;
   void (*EntryPoint)(void);
+  
+  __disable_irq();
+  HAL_SuspendTick(); //disable systick timer
+  HAL_DeInit(); //reset all peripherals registers
 
   ImgHeader = (ImgHeader_t*)gImagesOrigin[image_no];
 
-  __disable_irq();
-  HAL_SuspendTick(); //disable systick timer
-  HAL_DeInit();
-  SCB->VTOR = ImgHeader->VectorTableOffset;
+  SCB->VTOR = (ImgHeader->VectorTableAddr ^ 0x08000000);
   __set_MSP(ImgHeader->StackPointer);
+
   EntryPoint = (void(*)(void))(ImgHeader->EntryPointAddr);
   EntryPoint();
 }
@@ -654,4 +669,5 @@ BootIf_TxConfirmation(PduId_t id)
 {
   //DO NOTHING
 }
+
 /***************************** END OF FILE ***********************************/

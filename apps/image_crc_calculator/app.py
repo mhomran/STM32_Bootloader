@@ -34,9 +34,6 @@ def calculate_image_crc(file_name):
         raise Exception("Error: Nothing to flash")
     end_addr = ih.maxaddr()
     content = ih.todict()
-    
-    print("0X%08X" % start_addr)
-    print("0X%08X" % end_addr)
 
     addr = start_addr + IMG_HEADER_SIZE
     data = []
