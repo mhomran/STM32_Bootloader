@@ -7,6 +7,7 @@ A bootloader for STM32F407VG MCU. It's based on STM32CubeHAL.
 - It supports UART communication.
 - Flasher script to erase and program image.
 - The content of the image is independent position code (IPC) while the image header must be at the start of the image.
+- STM32CubeHAL is shared between the bootloader and the images.
 
 # Memory design
 <img src="imgs/memory_design.png">
