@@ -40,8 +40,8 @@ SERIAL_TIME_OUT = 5
 class Flasher:
     def __init__(self, serial_port, baudrate):
         try:
-            self.serial = serial.Serial(serial_port, baudrate=baudrate)
-            # timeout=SERIAL_TIME_OUT)
+            self.serial = serial.Serial(serial_port, baudrate=baudrate,
+            timeout=SERIAL_TIME_OUT)
         except :
             raise Exception(f"Couldn't open serial port: {serial_port}")
 
@@ -71,7 +71,7 @@ class Flasher:
 
             rx_data_bytes = self.serial.read(ACK_FRAME_SIZE)
             if len(rx_data_bytes) != ACK_FRAME_SIZE:
-                print("Timeout")
+                print("Timeout", f"just received {len(rx_data_bytes)}")
                 continue
 
             pdu_type = struct.unpack_from("B", rx_data_bytes, offset=TYPE_OFFSET)[0]

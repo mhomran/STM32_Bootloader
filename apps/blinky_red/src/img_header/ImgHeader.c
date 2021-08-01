@@ -22,7 +22,7 @@ static volatile const ImgHeader_t __attribute__((section(".img_header"))) gImgHe
   .Version = 0x00010000,
   .ImageStartAddr = (uint32_t)&_Image_0_Flash_Origin,
   .ImageEndAddr = (uint32_t)&_Image_0_Flash_End,
-  .CRC32 = 0X5C190F89,
+  .CRC32 = 0X2D377585,
   .StackPointer = (uint32_t)&_estack,
   .EntryPointAddr = (uint32_t)&Reset_Handler,
   .VectorTableAddr = ((uint32_t)&g_pfnVectors)
