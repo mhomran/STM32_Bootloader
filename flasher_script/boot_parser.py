@@ -2,10 +2,10 @@ import argparse
 
 
 BOOT_OPTIONS = (
-  'Flash hex file into a specific image (0, 3) (default)',
-  'Erase image (0, 3)',
-  'Flash hex file into a specific sector (4, 11)',
-  'Erase sector (4, 11)',
+  'Flash hex file into a specific image (0 : 3) (default)',
+  'Erase image (0 : 3)',
+  'Flash hex file into a specific sector (4 : 11)',
+  'Erase sector (4 : 11)',
   'Reset controller and enter application',
   'Set active image'  
   ) 
@@ -16,8 +16,8 @@ BOOT_OPTIONS_ERASE_SECTOR = 3
 BOOT_OPTIONS_RESET = 4
 BOOT_OPTIONS_SET_ACTIVE_IMAGE = 5
 
-MIN_SECTION = 4
-MAX_SECTION = 11
+MIN_SECTOR = 4
+MAX_SECTOR = 11
 
 MIN_IMAGE = 0
 MAX_IMAGE = 3
@@ -49,8 +49,9 @@ def init_argparse() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "-s", "--section", type=int, choices=range(MIN_SECTION, MAX_SECTION+1),
-        help="specify the section to be erased/programmed")
+        "-s", "--sector", type=int, choices=range(MIN_SECTOR, MAX_SECTOR+1),
+        help="specify the sector to be erased/programmed (default:4)",
+        default=MIN_SECTOR)
 
     parser.add_argument(
         "-i", "--image", type=int, choices=range(MIN_IMAGE, MAX_IMAGE+1),

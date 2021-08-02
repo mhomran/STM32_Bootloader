@@ -1,11 +1,11 @@
 # About
 A bootloader for STM32F407VG MCU. It's based on STM32CubeHAL. 
 # Bootloader features:
-- It supports four images with their headers.
-- It supports images with different sizes.
-- CRC32 check for programming records and for the entire image.
+- Flash, erase for a sector or an image (multiple sectors) and jump to the app.
+- It supports four images with their headers. The images are with diffrerent sizes.
+- CRC32 check for the programming records and for the entire image.
 - It supports UART communication.
-- Flasher script to erase and program image.
+- Flasher python script.
 - The content of the image is independent position code (IPC) while the image header must be at the start of the image.
 - STM32CubeHAL is shared between the bootloader and the images.
 

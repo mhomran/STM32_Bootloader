@@ -25,6 +25,21 @@ IMAGE_ADDR_RANGE = (
     (0x080C0000, 0x080FFFFF)
 )
 
+SECTOR_ADDR_RANGE = (
+    (0x08000000, 0x08003FFF),
+    (0x08004000, 0x08007FFF),
+    (0x08008000, 0x0800BFFF),
+    (0x0800C000, 0x0800FFFF),
+    (0x08010000, 0x0801FFFF),
+    (0x08020000, 0x0803FFFF),
+    (0x08040000, 0x0805FFFF),
+    (0x08060000, 0x0807FFFF), 
+    (0x08080000, 0x0809FFFF), 
+    (0x080A0000, 0x080BFFFF), 
+    (0x080C0000, 0x080DFFFF), 
+    (0x080E0000, 0x080FFFFF) 
+)
+
 DUMMY_ADDR = 0
 CRC_SIZE = 4
 ADDR_SIZE = 2
@@ -131,7 +146,6 @@ class Flasher:
         self._send_pdu(pdu_bytes)        
 
     def flash_image(self, file_name, image_no):
-        
         ih = IntelHex();
         
         if file_name == None:
@@ -150,6 +164,47 @@ class Flasher:
 
         self._unlock_flash()
 
+        self._flash(start_addr, end_addr, content)
+
+        self._lock_flash()
+
+        self._verify_image(image_no)
+
+    def _get_img_no(self, sector_no):
+        for image_no, image_range in enumerate(IMAGE_ADDR_RANGE):
+            image_start_addr = image_range[0]
+            image_end_addr = image_range[1]
+            if image_start_addr <= SECTOR_ADDR_RANGE[sector_no][0] <= image_end_addr:
+                return image_no
+
+    def flash_sector(self, file_name, sector_no):
+        ih = IntelHex();
+        
+        if file_name == None:
+            raise Exception("Specify the file with -f")
+
+        ih.loadhex(file_name)
+       
+        start_addr = ih.minaddr()
+        if start_addr == None:
+            raise Exception("Nothing to flash")
+        end_addr = ih.maxaddr()
+        content = ih.todict()
+        
+        if SECTOR_ADDR_RANGE[sector_no][0] > start_addr or end_addr > SECTOR_ADDR_RANGE[sector_no][1]:
+            raise Exception("addresses out of range of the sector")
+
+        self._unlock_flash()
+
+        self._flash(start_addr, end_addr, content)
+
+        self._lock_flash()
+        
+        image_no = self._get_img_no(sector_no)
+
+        self._verify_image(image_no)
+
+    def _flash(self, start_addr, end_addr, content):
         pdu_addr = start_addr
         pdu = []
         pdu_bytes = []
@@ -198,15 +253,9 @@ class Flasher:
 
                     self._send_pdu(pdu_bytes)
                     
-                pdu_addr = pdu_addr + 16
-        
-        self._lock_flash()
-            
-
-        self._verify_image(image_no)
+                pdu_addr = pdu_addr + 16            
 
     def erase_image(self, image_no):
-        self._unlock_flash()
 
         pdu = []
         pdu.append(DUMMY_ADDR)
@@ -217,6 +266,26 @@ class Flasher:
         crc = self._calculate_crc(pdu_bytes)
         crc_bytes = struct.pack("I", crc)
         pdu_bytes = pdu_bytes + crc_bytes
+
+        self._unlock_flash()
+
+        self._send_pdu(pdu_bytes)
+
+        self._lock_flash()
+
+    def erase_sector(self, sector_no):
+
+        pdu = []
+        pdu.append(DUMMY_ADDR)
+        pdu.append(PDU_TYPES.index('BOOT_IF_TYPE_ERASE_SECTOR'))
+        pdu.append(sector_no)
+
+        pdu_bytes = struct.pack("HBB", *pdu)
+        crc = self._calculate_crc(pdu_bytes)
+        crc_bytes = struct.pack("I", crc)
+        pdu_bytes = pdu_bytes + crc_bytes
+
+        self._unlock_flash()
 
         self._send_pdu(pdu_bytes)
 
@@ -266,6 +335,11 @@ if __name__ == "__main__":
             flasher.reset()
         elif boot_parser.BOOT_OPTIONS_SET_ACTIVE_IMAGE == action:
             flasher.set_active_image(args.image)
+        elif boot_parser.BOOT_OPTIONS_ERASE_SECTOR == action:
+            flasher.erase_sector(args.sector)
+        elif boot_parser.BOOT_OPTIONS_FLASH_SECTOR == action:
+            flasher.flash_sector(args.file, args.sector)
+            
     except Exception as e:
         print(e)
 
